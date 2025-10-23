@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clean Kit Planner - Portal de Acesso</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body {
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            background-color: #f4f7f6;
+            padding: 40px 16px;
+        }
+        .portal-container {
+            max-width: 960px;
+            width: 100%;
+        }
+        .portal-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .portal-header h1 {
+            margin-bottom: 8px;
+        }
+        .access-grid {
+            display: grid;
+            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        }
+        .access-card {
+            background: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 24px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+        }
+        .access-card h2 {
+            margin: 0;
+            font-size: 1.35rem;
+        }
+        .access-card p {
+            flex: 1;
+            color: #495057;
+        }
+        .access-card .btn {
+            align-self: flex-start;
+        }
+        .access-card .btn:disabled {
+            background-color: #ced4da;
+            cursor: not-allowed;
+        }
+        .access-card .access-note {
+            font-size: 0.9rem;
+            color: #868e96;
+        }
+        .access-card.disabled {
+            opacity: 0.6;
+            border-color: #e9ecef;
+            box-shadow: none;
+        }
+        .access-card.active:not(.disabled) {
+            border-color: #0b5ed7;
+            box-shadow: 0 16px 32px rgba(11, 94, 215, 0.18);
+            transform: translateY(-4px);
+        }
+        .logout-link {
+            margin-top: 32px;
+            text-align: center;
+        }
+        .logout-link button {
+            background: transparent;
+            border: none;
+            color: #495057;
+            text-decoration: underline;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="portal-container">
+        <div class="portal-header">
+            <h1>Olá, <span id="user-email">usuário</span></h1>
+            <p>Escolha a área que deseja acessar. Seu papel atual é <strong id="user-role">-</strong>.</p>
+        </div>
+
+        <div class="access-grid">
+            <div class="access-card" id="card-admin">
+                <h2>Painel Principal</h2>
+                <p>Gerencie cadastros completos, estoques, conversões e relatórios do sistema.</p>
+                <span class="access-note">Disponível para administradores.</span>
+                <button type="button" class="btn" data-target="index.html">Acessar Painel</button>
+            </div>
+
+            <div class="access-card" id="card-limpeza">
+                <h2>Área de Limpeza</h2>
+                <p>Registre pedidos, utilize kits rápidos e gere PDFs para o time de limpeza.</p>
+                <span class="access-note">Disponível para perfis de limpeza.</span>
+                <button type="button" class="btn" data-target="user_page.html">Acessar Limpeza</button>
+            </div>
+
+            <div class="access-card" id="card-alimentacao">
+                <h2>Área de Alimentação</h2>
+                <p>Em breve: fluxo dedicado para pedidos e controle de suprimentos de alimentação.</p>
+                <span class="access-note">Disponível para perfis de alimentação.</span>
+                <button type="button" class="btn" data-target="alimentacao_page.html">Acessar Alimentação</button>
+            </div>
+        </div>
+
+        <div class="logout-link">
+            <button type="button" id="logout-btn">Sair da conta</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const supa = window.supabaseClient;
+            if (!supa) {
+                alert('Supabase não inicializado. Verifique js/supabase-config.js');
+                return;
+            }
+
+            const { data: { session }, error } = await supa.auth.getSession();
+            if (error || !session) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const user = session.user;
+            document.getElementById('user-email').textContent = user.email || user.user_metadata?.email || 'usuário';
+
+            const { data: profile, error: profileError } = await supa
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .maybeSingle();
+
+            let role = profile?.role || 'limpeza';
+            if (profileError && profileError.code !== 'PGRST116') {
+                console.error('Erro ao obter perfil:', profileError);
+            }
+
+            role = role?.toString().trim().toLowerCase() || 'limpeza';
+
+            const displayRole = role.charAt(0).toUpperCase() + role.slice(1);
+            document.getElementById('user-role').textContent = displayRole;
+
+            // Exibe aviso visual caso o papel padrão não corresponda, mas mantém botões habilitados
+            const allow = {
+                admin: role === 'admin',
+                limpeza: role === 'limpeza' || role === 'admin',
+                alimentacao: role === 'alimentacao' || role === 'admin'
+            };
+
+            Object.entries({
+                'card-admin': allow.admin,
+                'card-limpeza': allow.limpeza,
+                'card-alimentacao': allow.alimentacao
+            }).forEach(([cardId, enabled]) => {
+                const card = document.getElementById(cardId);
+                if (!card) return;
+                const btn = card.querySelector('button');
+                if (btn) btn.disabled = false;
+                if (!enabled) {
+                    card.classList.add('disabled');
+                    const note = card.querySelector('.access-note');
+                    if (note && !note.textContent.includes('permite')) {
+                        note.textContent += ' (seu papel atual pode não permitir esta área)';
+                    }
+                } else {
+                    card.classList.remove('disabled');
+                }
+            });
+
+            const params = new URLSearchParams(window.location.search);
+            const storedRole = localStorage.getItem('ckpActiveRole');
+            const focusRole = (params.get('role') || storedRole || role || 'limpeza').toString().trim().toLowerCase();
+            const highlightMap = {
+                admin: 'card-admin',
+                limpeza: 'card-limpeza',
+                alimentacao: 'card-alimentacao'
+            };
+
+            const highlightCard = (roleKey) => {
+                Object.values(highlightMap).forEach(id => {
+                    const card = document.getElementById(id);
+                    if (card) card.classList.remove('active');
+                });
+                if (roleKey && highlightMap[roleKey]) {
+                    const cardId = highlightMap[roleKey];
+                    const card = document.getElementById(cardId);
+                    if (card) card.classList.add('active');
+                }
+            };
+            highlightCard(focusRole);
+
+            document.querySelectorAll('.access-card button[data-target]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const target = btn.dataset.target;
+                    if (btn.disabled || !target) return;
+                    const cardId = btn.closest('.access-card')?.id;
+                    const matchingRole = Object.entries(highlightMap).find(([, val]) => val === cardId);
+                    if (matchingRole) {
+                        const [roleKey] = matchingRole;
+                        localStorage.setItem('ckpActiveRole', roleKey);
+                        highlightCard(roleKey);
+                    }
+                    window.location.href = target;
+                });
+            });
+
+            document.getElementById('logout-btn').addEventListener('click', async () => {
+                await supa.auth.signOut();
+                window.location.href = 'login.html';
+            });
+        });
+    </script>
+</body>
+</html>

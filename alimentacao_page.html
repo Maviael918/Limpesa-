@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clean Kit Planner - Alimentação</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Garante que o supabaseClient exista
+            if (typeof window.supabaseClient === 'undefined') {
+                let attempts = 0;
+                const maxAttempts = 20;
+                const interval = setInterval(async () => {
+                    if (typeof window.supabaseClient !== 'undefined') {
+                        clearInterval(interval);
+                        await checkAuthAndRole();
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(interval);
+                        console.error('Supabase client não inicializado. Redirecionando para login.');
+                        window.location.href = 'login.html';
+                    }
+                    attempts++;
+                }, 100);
+            } else {
+                await checkAuthAndRole();
+            }
+
+            async function checkAuthAndRole() {
+                const { data: { session }, error: sessionError } = await window.supabaseClient.auth.getSession();
+                if (sessionError || !session) {
+                    window.location.href = 'login.html';
+                    return;
+                }
+
+                const { data: profile, error: profileError } = await window.supabaseClient
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', session.user.id)
+                    .single();
+
+                if (profileError || !profile || !['alimentacao','admin'].includes(profile.role)) {
+                    alert('Acesso negado. Você não tem permissão para acessar esta página.');
+                    window.location.href = 'login.html';
+                    return;
+                }
+            }
+        });
+    </script>
+
+    <div class="main-content" style="margin-left: 0;">
+        <div class="page active">
+            <h1>Área de Alimentação</h1>
+            <div class="card">
+                <div class="form-actions" style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+                    <button type="button" id="cadastrar-produto-alimentacao" class="btn btn-primary">Cadastrar Produto de Alimentação</button>
+                </div>
+                <p>Esta é uma página placeholder para o papel "alimentação". Podemos definir aqui o fluxo específico quando você estiver pronto.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const cadastroBtn = document.getElementById('cadastrar-produto-alimentacao');
+            if (cadastroBtn) {
+                cadastroBtn.addEventListener('click', function() {
+                    try {
+                        localStorage.setItem('ckpTargetPage', 'settings');
+                        localStorage.setItem('ckpTargetTab', 'products-settings');
+                        localStorage.setItem('ckpActiveRole', 'admin');
+                    } catch (_) {}
+                    window.location.href = 'index.html';
+                });
+            }
+        });
+    </script>
+</body>
+</html>

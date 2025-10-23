@@ -1,0 +1,21 @@
+[build]
+  command = "echo 'Limpesa application ready for deployment'"
+  publish = "."
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[context.production]
+  command = "echo 'Production build'"
+
+[context.deploy-preview]
+  command = "echo 'Deploy preview'"
+
+[context.branch-deploy]
+  command = "echo 'Branch deploy'"
+
+# Environment variables can be set in Netlify dashboard
+# Required: SUPABASE_URL, SUPABASE_ANON_KEY
+
