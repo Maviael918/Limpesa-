@@ -14,7 +14,22 @@ class SyncManager {
         return configured;
     }
 
-    async syncInitialData() {
+    async syncInitialData(options = {}) {
+        const { forceRefresh = false } = options;
+
+        if (this.isSyncing) {
+            console.log('🔁 Sincronização já em andamento, aguardando conclusão...');
+        }
+
+        if (!forceRefresh && this.lastSync) {
+            const elapsed = Date.now() - this.lastSync.getTime();
+            // Evita sincronizações em sequência caso o usuário reabra a aba rapidamente
+            if (elapsed < 5000) {
+                console.log('⏭️ Ignorando sincronização: última execução ocorreu há menos de 5 segundos.');
+                return { success: true, skipped: true, message: 'Sincronização recente reutilizada.' };
+            }
+        }
+
         return await this.pullFromSupabase();
     }
 
@@ -35,6 +50,8 @@ class SyncManager {
                 schools: { count: 0, success: true },
                 products: { count: 0, success: true },
                 units: { count: 0, success: true },
+                kits: { count: 0, success: true },
+                stock: { count: 0, success: true },
                 orders: { count: 0, success: true }
             };
 
@@ -121,7 +138,84 @@ class SyncManager {
                 console.error('❌ Erro ao carregar unidades:', error);
             }
 
-            // 4. Puxar Pedidos (apenas para histórico, não para edição)
+            // 4. Puxar Kits (agrupados por tipo)
+            try {
+                const { data: kitsData, error: kitsError } = await window.supabaseClient
+                    .from('kits')
+                    .select('*')
+                    .order('kit_type', { ascending: true })
+                    .order('created_at', { ascending: true });
+
+                if (kitsError) throw kitsError;
+                console.log('Supabase kits data:', kitsData);
+
+                const groupedKits = { p: [], m: [], g: [] };
+                if (kitsData && kitsData.length > 0) {
+                    kitsData.forEach(item => {
+                        const rawType = (item.kit_type || '').toLowerCase();
+                        const kitType = ['p', 'm', 'g'].includes(rawType) ? rawType : 'p';
+                        if (!groupedKits[kitType]) {
+                            groupedKits[kitType] = [];
+                        }
+
+                        const kitEntry = item.product || {};
+                        const normalizedEntry = {
+                            product: kitEntry.product || kitEntry.name || '',
+                            quantity: Number(kitEntry.quantity) || 0,
+                            unit: kitEntry.unit || ''
+                        };
+
+                        if (normalizedEntry.product) {
+                            groupedKits[kitType].push(normalizedEntry);
+                        }
+                    });
+
+                    localStorage.setItem('kits', JSON.stringify(groupedKits));
+                    results.kits.count = Object.values(groupedKits).reduce((acc, arr) => acc + arr.length, 0);
+                    console.log(`✅ Kits sincronizados (${results.kits.count} itens no total)`);
+                } else {
+                    // Garante que localStorage tenha estrutura vazia consistente
+                    localStorage.setItem('kits', JSON.stringify(groupedKits));
+                    console.log('ℹ️ Nenhum kit cadastrado no Supabase, inicializando estrutura vazia');
+                }
+            } catch (error) {
+                results.kits.success = false;
+                console.error('❌ Erro ao carregar kits:', error);
+            }
+
+            // 5. Puxar Estoque
+            try {
+                const { data: stockData, error: stockError } = await window.supabaseClient
+                    .from('stock')
+                    .select('*')
+                    .order('product');
+
+                if (stockError) throw stockError;
+                console.log('Supabase stock data:', stockData);
+
+                const formattedStock = {};
+                if (stockData && stockData.length > 0) {
+                    stockData.forEach(item => {
+                        if (!item?.product) return;
+                        formattedStock[item.product] = {
+                            quantity: Number(item.quantity) || 0,
+                            unit: item.unit || ''
+                        };
+                    });
+
+                    localStorage.setItem('stock', JSON.stringify(formattedStock));
+                    results.stock.count = Object.keys(formattedStock).length;
+                    console.log(`✅ ${results.stock.count} itens de estoque carregados`);
+                } else {
+                    localStorage.setItem('stock', JSON.stringify({}));
+                    console.log('ℹ️ Nenhum item de estoque encontrado no Supabase');
+                }
+            } catch (error) {
+                results.stock.success = false;
+                console.error('❌ Erro ao carregar estoque:', error);
+            }
+
+            // 6. Puxar Pedidos (apenas para histórico, não para edição)
             try {
                 const { data: ordersData, error: ordersError } = await window.supabaseClient
                     .from('orders')

@@ -8,7 +8,7 @@ window.PDF = {
         schoolInfoTitle: { x: 20, y: 60, fontSize: 12, text: ' ' },
         schoolName: { x: 20, y: 67, fontSize: 10, prefix: 'Nome da Escola:' },
         schoolSector: { x: 20, y: 72, fontSize: 10, prefix: 'Setor:' },
-        schoolManager: { x: 20, y: 77, fontSize: 10, prefix: 'Gestora:' },
+        schoolManager: { x: 20, y: 77, fontSize: 10, prefix: 'Gestor(a):' },
         schoolAddress: { x: 20, y: 82, fontSize: 10, prefix: 'Endereço:' },
         schoolModality: { x: 20, y: 87, fontSize: 10, prefix: 'Modalidade:' },
         schoolStudents: { x: 20, y: 92, fontSize: 10, prefix: 'Nº de Alunos:' },
@@ -165,7 +165,7 @@ window.PDF = {
                 head: [tableColumn],
                 body: rows,
                 theme: 'grid',
-                styles: { fontSize: 9, cellPadding: 1.5, overflow: 'linebreak' },
+                styles: { fontSize: 9, cellPadding: 1.5, overflow: 'linebreak', fontStyle: 'bold', textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.35 },
                 headStyles: { fillColor: [255, 255, 153], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 9 },
                 margin: { left: 18, right: 18 },
             });

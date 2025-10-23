@@ -39,15 +39,14 @@ window.Main = {
 
     initializeData: async function() {
         this.loadDataFromLocalStorage();
-        if (products.length === 0) {
-            console.log('Nenhum produto encontrado no localStorage, buscando no Supabase...');
-            try {
-                await window.SyncManager.syncInitialData();
-                this.loadDataFromLocalStorage(); // Recarregar após a sincronização
-            } catch (error) {
-                console.error('Erro ao buscar dados iniciais do Supabase:', error);
-                alert('Não foi possível buscar os dados iniciais do servidor. A aplicação pode não funcionar corretamente.');
+        try {
+            const result = await window.SyncManager.syncInitialData({ forceRefresh: true });
+            if (!result?.skipped) {
+                this.loadDataFromLocalStorage(); // Recarrega dados atualizados
             }
+        } catch (error) {
+            console.error('Erro ao buscar dados iniciais do Supabase:', error);
+            alert('Não foi possível buscar os dados iniciais do servidor. A aplicação pode não funcionar corretamente.');
         }
         window.UI.reRenderUI();
     },
