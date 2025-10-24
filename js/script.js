@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
 
         // Show requested page/tab or default orders
-        const targetPage = localStorage.getItem('ckpTargetPage') || 'orders';
+        const targetPage = localStorage.getItem('ckpTargetPage') || 'settings';
         window.UI.showPage(targetPage);
         const targetTab = localStorage.getItem('ckpTargetTab');
         if (targetTab) {

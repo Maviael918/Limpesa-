@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clean Kit Planner</title>
+    <title>mvlSystem | Configurações</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.lordicon.com/lordicon.js"></script>
     <!-- jsPDF Library -->
@@ -47,48 +47,34 @@
             }
         });
     </script>
-    <div class="sidebar">
-        <h2>Clean Kit Planner</h2>
-        <nav>
-            <ul>
-                <li>
-                    <a href="#" data-page="orders">
-                        <lord-icon
-                            src="https://cdn.lordicon.com/odavpkmb.json"
-                            trigger="hover"
-                            colors="primary:#495057,secondary:#e9ecef"
-                            style="width:32px;height:32px">
-                        </lord-icon>
-                        <span>Pedidos</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="#" data-page="stock-page">
-                        <lord-icon
-                            src="https://cdn.lordicon.com/oaflahpk.json"
-                            trigger="hover"
-                            colors="primary:#495057,secondary:#e9ecef"
-                            style="width:32px;height:32px">
-                        </lord-icon>
-                        <span>Estoques</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="#" data-page="settings">
-                        <lord-icon
-                            src="https://cdn.lordicon.com/sbiheqdr.json"
-                            trigger="hover"
-                            colors="primary:#495057,secondary:#e9ecef"
-                            style="width:32px;height:32px">
-                        </lord-icon>
-                        <span>Configurações</span>
-                    </a>
-                </li>
-            </ul>
-        </nav>
-    </div>
+    <header class="app-header">
+        <div class="brand-block">
+            <span class="brand-title">mvlSystem</span>
+            <span class="brand-subtitle">Apoio Digital auxiliando na gestão do DME</span>
+        </div>
+        <div class="header-actions">
+            <a class="header-btn" href="user_page.html">
+                <span class="header-btn-icon">
+                    <lord-icon src="https://cdn.lordicon.com/odavpkmb.json" trigger="hover" colors="primary:#0b7285,secondary:#82c91e" style="width:36px;height:36px;"></lord-icon>
+                </span>
+                <div class="header-btn-content">
+                    <strong>Limpeza</strong>
+                    <span>Pedidos e kits de limpeza</span>
+                </div>
+            </a>
+            <a class="header-btn" href="alimentacao_page.html">
+                <span class="header-btn-icon">
+                    <lord-icon src="https://cdn.lordicon.com/etqbfrgp.json" trigger="hover" colors="primary:#0b7285,secondary:#82c91e" style="width:36px;height:36px;"></lord-icon>
+                </span>
+                <div class="header-btn-content">
+                    <strong>Alimentação</strong>
+                    <span>Kits e produtos de alimentação</span>
+                </div>
+            </a>
+        </div>
+    </header>
     <div class="main-content">
-        <div id="orders" class="page active">
+        <div id="orders" class="page">
             <h1>Novo Pedido</h1>
 
             <div class="card page-hero-card">
@@ -412,31 +398,68 @@
                 </form>
             </div>
         </div>
-        <div id="settings" class="page">
-            <h1>Configurações</h1>
+        <div id="settings" class="page active">
+            <div class="settings-hero">
+                <div class="settings-hero-icon">
+                    <lord-icon src="https://cdn.lordicon.com/sbiheqdr.json" trigger="loop" delay="2600" colors="primary:#0b7285,secondary:#82c91e" style="width:48px;height:48px;"></lord-icon>
+                </div>
+                <div class="settings-hero-content">
+                    <h1>Central de Configurações</h1>
+                    <p>Organize cadastros, catálogos e parâmetros que sustentam os fluxos de limpeza e alimentação. As seções abaixo reúnem tudo que a equipe administrativa precisa ajustar.</p>
+                </div>
+            </div>
 
-            <div class="tabs">
+            <div class="tabs settings-tabs">
                 <button type="button" class="tab-link active" data-tab="schools">
-                    <lord-icon src="https://cdn.lordicon.com/itnqiirz.json" trigger="loop" delay="3000" colors="primary:#0b7285" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
-                    Escolas
+                    <div class="tab-link-icon">
+                        <lord-icon src="https://cdn.lordicon.com/itnqiirz.json" trigger="loop" delay="3000" colors="primary:#0b7285" style="width:32px;height:32px;"></lord-icon>
+                    </div>
+                    <div class="tab-link-text">
+                        <strong>Escolas</strong>
+                        <span>Cadastre unidades, gestoras e detalhes logísticos.</span>
+                    </div>
+                    <span class="tab-link-arrow">&gt;</span>
                 </button>
                 <button type="button" class="tab-link" data-tab="products-settings">
-                    <lord-icon src="https://cdn.lordicon.com/cllunfud.json" trigger="hover" colors="primary:#0b7285" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
-                    Produtos
+                    <div class="tab-link-icon">
+                        <lord-icon src="https://cdn.lordicon.com/cllunfud.json" trigger="hover" colors="primary:#0b7285" style="width:32px;height:32px;"></lord-icon>
+                    </div>
+                    <div class="tab-link-text">
+                        <strong>Produtos</strong>
+                        <span>Gerencie o catálogo base de produtos de limpeza.</span>
+                    </div>
+                    <span class="tab-link-arrow">&gt;</span>
                 </button>
                 <button type="button" class="tab-link" data-tab="food-products-settings">
-                    <lord-icon src="https://cdn.lordicon.com/etqbfrgp.json" trigger="loop" delay="3200" colors="primary:#0b7285" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
-                    Produtos Alimentação
+                    <div class="tab-link-icon">
+                        <lord-icon src="https://cdn.lordicon.com/etqbfrgp.json" trigger="loop" delay="3200" colors="primary:#0b7285" style="width:32px;height:32px;"></lord-icon>
+                    </div>
+                    <div class="tab-link-text">
+                        <strong>Produtos Alimentação</strong>
+                        <span>Atualize itens específicos para kits de alimentação.</span>
+                    </div>
+                    <span class="tab-link-arrow">&gt;</span>
                 </button>
                 <button type="button" class="tab-link" data-tab="units">
-                    <lord-icon src="https://cdn.lordicon.com/hyhnpiza.json" trigger="hover" colors="primary:#0b7285" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
-                    Unidades de Medida
+                    <div class="tab-link-icon">
+                        <lord-icon src="https://cdn.lordicon.com/hyhnpiza.json" trigger="hover" colors="primary:#0b7285" style="width:32px;height:32px;"></lord-icon>
+                    </div>
+                    <div class="tab-link-text">
+                        <strong>Unidades de Medida</strong>
+                        <span>Padronize como os produtos são mensurados.</span>
+                    </div>
+                    <span class="tab-link-arrow">&gt;</span>
                 </button>
                 <button type="button" class="tab-link" data-tab="unit-conversions">
-                    <lord-icon src="https://cdn.lordicon.com/isugonwi.json" trigger="hover" colors="primary:#0b7285" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
-                    Conversões de Unidades
+                    <div class="tab-link-icon">
+                        <lord-icon src="https://cdn.lordicon.com/isugonwi.json" trigger="hover" colors="primary:#0b7285" style="width:32px;height:32px;"></lord-icon>
+                    </div>
+                    <div class="tab-link-text">
+                        <strong>Conversões de Unidades</strong>
+                        <span>Crie equivalências entre embalagens e medidas.</span>
+                    </div>
+                    <span class="tab-link-arrow">&gt;</span>
                 </button>
-                
             </div>
 
             <div id="schools" class="tab-content active">

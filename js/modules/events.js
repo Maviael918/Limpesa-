@@ -472,32 +472,33 @@ window.Events = {
         }
     },
 
-    handleSaveOrderAndGeneratePdf: async function() {
-        const schoolName = domElements.orderSchoolSelect.value;
-        const observations = domElements.orderObservationsInput.value;
+    buildCleaningOrderPayload: function() {
+        const schoolName = domElements.orderSchoolSelect?.value;
+        const observations = domElements.orderObservationsInput?.value;
 
         if (!schoolName || currentOrderProducts.length === 0) {
             alert('Selecione uma escola e adicione produtos ao pedido.');
-            return;
+            return null;
         }
 
         const selectedSchool = schools.find(s => s.name === schoolName);
         if (!selectedSchool) {
             alert('Escola não encontrada.');
-            return;
+            return null;
         }
-
-        // No stock check for user_page, as stock management is not available
 
         const isEditing = editingOrderId !== null;
         const existingOrder = isEditing ? orders.find(o => o.id == editingOrderId) : null;
         const nowIso = new Date().toISOString();
+        const localId = existingOrder?.localId || editingOrderId || Date.now();
+
         const orderData = {
             id: isEditing ? (existingOrder?.id ?? editingOrderId) : null,
+            localId,
             date: new Date().toLocaleDateString('pt-BR'),
-            order_date: new Date().toISOString().split('T')[0],
+            order_date: nowIso.split('T')[0],
             school: selectedSchool,
-            items: [...currentOrderProducts],
+            items: currentOrderProducts.map(item => ({ ...item })),
             observations,
             created_at: existingOrder?.created_at || null,
             pendingSync: existingOrder?.pendingSync ?? false,
@@ -507,6 +508,10 @@ window.Events = {
             localCreatedAt: existingOrder?.localCreatedAt || nowIso
         };
 
+        return { orderData, isEditing, nowIso };
+    },
+
+    finalizeCleaningOrderOutput: async function(orderData, isEditing, nowIso, outputType) {
         const { data: savedOrder } = await this.persistOrderToSupabase(orderData);
         if (savedOrder?.id) {
             orderData.id = savedOrder.id;
@@ -520,34 +525,69 @@ window.Events = {
             orderData.pendingSync = true;
             orderData.wasSynced = false;
         }
+
         if (!orderData.created_at) {
             orderData.created_at = nowIso;
+        }
+        if (!orderData.localCreatedAt) {
+            orderData.localCreatedAt = nowIso;
         }
 
         if (isEditing) {
             const orderIndex = orders.findIndex(o => o.id == editingOrderId);
             if (orderIndex > -1) {
                 orders[orderIndex] = orderData;
+            } else if (editingOrderId !== null) {
+                orders.push(orderData);
             }
             editingOrderId = null;
-            domElements.saveOrderBtn.textContent = 'Salvar e Gerar PDF';
-            domElements.cancelEditBtn.style.display = 'none';
+            if (domElements.saveOrderBtn) {
+                domElements.saveOrderBtn.textContent = 'Salvar e Gerar PDF';
+            }
+            if (domElements.cancelEditBtn) {
+                domElements.cancelEditBtn.style.display = 'none';
+            }
         } else {
             orders.push(orderData);
         }
 
         window.Main.saveDataToLocalStorage();
         window.UI.renderOrders();
-        
-        // Reset form
-        domElements.orderSchoolSelect.value = '';
+        if (outputType === 'print') {
+            try {
+                await window.PDF.printOrder(orderData);
+            } catch (error) {
+                console.error('Erro ao imprimir pedido:', error);
+                alert('Não foi possível enviar o pedido para impressão.');
+            }
+        } else {
+            try {
+                await window.PDF.generateOrderPdf(orderData, true); // true para salvar
+            } catch (error) {
+                console.error('Erro ao gerar PDF do pedido:', error);
+                alert('Não foi possível gerar o PDF. Verifique o console para detalhes.');
+            }
+        }
+
+        return orderData;
+    },
+
+    handleSaveOrderAndGeneratePdf: async function() {
+        const buildResult = this.buildCleaningOrderPayload();
+        if (!buildResult) return;
+
+        const { orderData, isEditing, nowIso } = buildResult;
+        await this.finalizeCleaningOrderOutput(orderData, isEditing, nowIso, 'download');
+
+        if (domElements.orderSchoolSelect) {
+            domElements.orderSchoolSelect.value = '';
+        }
         currentOrderProducts = [];
         window.UI.renderCurrentOrderProducts();
-        domElements.orderObservationsInput.value = '';
+        if (domElements.orderObservationsInput) {
+            domElements.orderObservationsInput.value = '';
+        }
         window.UI.updateOrderHeroSummary();
-
-        // Generate PDF
-        await window.PDF.generateOrderPdf(orderData, true); // true para salvar
     },
 
     handleConfirmKitSchoolAndGeneratePdf: async function() {
@@ -609,29 +649,11 @@ window.Events = {
     },
 
     handlePrintCurrentOrder: async function() {
-        const schoolName = domElements.orderSchoolSelect.value;
-        const observations = domElements.orderObservationsInput.value;
+        const buildResult = this.buildCleaningOrderPayload();
+        if (!buildResult) return;
 
-        if (!schoolName || currentOrderProducts.length === 0) {
-            alert('Selecione uma escola e adicione produtos ao pedido antes de imprimir.');
-            return;
-        }
-
-        const selectedSchool = schools.find(s => s.name === schoolName);
-        if (!selectedSchool) {
-            alert('Escola não encontrada.');
-            return;
-        }
-
-        const orderData = {
-            id: Date.now(),
-            date: new Date().toLocaleDateString('pt-BR'),
-            school: selectedSchool,
-            items: [...currentOrderProducts],
-            observations: observations
-        };
-
-        await window.PDF.printOrder(orderData);
+        const { orderData, isEditing, nowIso } = buildResult;
+        await this.finalizeCleaningOrderOutput(orderData, isEditing, nowIso, 'print');
     },
 
     handleGeneratePdfForOrder: async function(orderId) {

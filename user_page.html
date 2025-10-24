@@ -3,51 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clean Kit Planner - Pedidos</title>
+    <title>mvlSystem - Limpeza</title>
     <link rel="stylesheet" href="css/style.css">
-    <script src="https://cdn.lordicon.com/lordicon.js"></script>
-    <!-- jsPDF Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.lordicon.com/lordicon.js"></script>
 </head>
 <body>
     <script>
         document.addEventListener('DOMContentLoaded', async function() {
-            // Ensure supabaseClient is available
             if (typeof window.supabaseClient === 'undefined') {
-                // Wait for supabase-config.js to load and initialize supabaseClient
                 let attempts = 0;
-                const maxAttempts = 20; // Try for up to 2 seconds
+                const maxAttempts = 20;
                 const interval = setInterval(async () => {
                     if (typeof window.supabaseClient !== 'undefined') {
                         clearInterval(interval);
                         await checkAuthAndRole();
                     } else if (attempts >= maxAttempts) {
                         clearInterval(interval);
-                        console.error('Supabase client not initialized after multiple attempts. Redirecting to login.');
+                        console.error('Supabase client não inicializado. Redirecionando para login.');
                         window.location.href = 'login.html';
                     }
                     attempts++;
-                }, 100); // Check every 100ms
+                }, 100);
             } else {
                 await checkAuthAndRole();
             }
 
             async function checkAuthAndRole() {
                 const { data: { session }, error: sessionError } = await window.supabaseClient.auth.getSession();
-
                 if (sessionError || !session) {
                     window.location.href = 'login.html';
                     return;
                 }
 
-                const { data: profile, error: profileError } = await window.supabaseClient
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', session.user.id)
-                    .maybeSingle();
+                let storedRole = null;
+                try { storedRole = localStorage.getItem('ckpActiveRole'); } catch (_) {}
+                storedRole = storedRole ? storedRole.toString().trim().toLowerCase() : null;
 
-                if (profileError || !profile || !['limpeza','admin'].includes(profile.role)) {
+                let allowed = storedRole && ['limpeza', 'admin'].includes(storedRole);
+
+                if (!allowed) {
+                    const { data: profile, error: profileError, status } = await window.supabaseClient
+                        .from('profiles')
+                        .select('role')
+                        .eq('id', session.user.id)
+                        .maybeSingle();
+
+                    if (profileError && status !== 406) {
+                        console.error('Erro ao buscar perfil para limpeza:', profileError);
+                    }
+
+                    const roleDb = profile?.role ? profile.role.toString().trim().toLowerCase() : null;
+                    allowed = roleDb && ['limpeza', 'admin'].includes(roleDb);
+                }
+
+                if (!allowed) {
                     alert('Acesso negado. Você não tem permissão para acessar esta página.');
                     window.location.href = 'login.html';
                     return;
@@ -55,388 +66,220 @@
             }
         });
     </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', async function() {
-            // Ensure supabaseClient is available
-            if (typeof window.supabaseClient === 'undefined') {
-                // Wait for supabase-config.js to load and initialize supabaseClient
-                let attempts = 0;
-                const maxAttempts = 20; // Try for up to 2 seconds
-                const interval = setInterval(async () => {
-                    if (typeof window.supabaseClient !== 'undefined') {
-                        clearInterval(interval);
-                        await checkAuthAndRole();
-                    } else if (attempts >= maxAttempts) {
-                        clearInterval(interval);
-                        console.error('Supabase client not initialized after multiple attempts. Redirecting to login.');
-                        window.location.href = 'login.html';
-                    }
-                    attempts++;
-                }, 100); // Check every 100ms
-            } else {
-                await checkAuthAndRole();
-            }
 
-            async function checkAuthAndRole() {
-                const { data: { session }, error: sessionError } = await window.supabaseClient.auth.getSession();
-
-                if (sessionError || !session) {
-                    window.location.href = 'login.html';
-                    return;
-                }
-
-                const { data: profile, error: profileError } = await window.supabaseClient
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', session.user.id)
-                    .maybeSingle();
-
-                if (profileError || !profile || !['limpeza','admin'].includes(profile.role)) {
-                    alert('Acesso negado. Você não tem permissão para acessar esta página.');
-                    window.location.href = 'login.html';
-                    return;
-                }
-            }
-        });
-    </script>
     <div class="main-content" style="margin-left: 0;">
-        <div id="orders" class="page active">
-            <h1>Novo Pedido</h1>
-
+        <div class="page active">
+            <h1>Área de Limpeza</h1>
             <div class="card">
-                <h2>Informações do Pedido</h2>
-                <div class="order-info-container">
-                    <div class="form-group">
-                        <label for="order-sector-filter">Setor</label>
-                        <select id="order-sector-filter">
-                            <option value="">Selecione um Setor</option>
-                        </select>
+                <div class="form-actions" style="display:flex;justify-content:flex-end;margin-bottom:16px;gap:8px;">
+                    <button type="button" id="limpeza-configure-products" class="btn btn-secondary">
+                        <lord-icon src="https://cdn.lordicon.com/gqdnbnwt.json" trigger="hover" colors="primary:#ffffff" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
+                        Configurar Produtos
+                    </button>
+                    <button type="button" id="limpeza-select-school-btn" class="btn">
+                        <lord-icon src="https://cdn.lordicon.com/nehsutef.json" trigger="hover" colors="primary:#ffffff" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
+                        Selecionar Escola
+                    </button>
+                    <button type="button" id="limpeza-open-product-modal" class="btn btn-primary">
+                        <lord-icon src="https://cdn.lordicon.com/cllunfud.json" trigger="hover" colors="primary:#ffffff" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
+                        Adicionar Produtos
+                    </button>
+                </div>
+
+                <div class="order-meta" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px;">
+                    <div class="info-card">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <lord-icon src="https://cdn.lordicon.com/nocovwne.json" trigger="hover" colors="primary:#0b7285" style="width:28px;height:28px;"></lord-icon>
+                            <strong>Setor Selecionado</strong>
+                        </div>
+                        <span id="limpeza-selected-sector">-</span>
                     </div>
-                    <div class="form-group">
-                        <label for="order-school-select">Escola</label>
-                        <select id="order-school-select" required>
-                            <option value="">Selecione uma Escola</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="order-observations">Observações</label>
-                        <textarea id="order-observations" placeholder="Observações sobre a entrega, produtos, etc."></textarea>
+                    <div class="info-card">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <lord-icon src="https://cdn.lordicon.com/sbiheqdr.json" trigger="hover" colors="primary:#0b7285" style="width:28px;height:28px;"></lord-icon>
+                            <strong>Escola Selecionada</strong>
+                        </div>
+                        <span id="limpeza-selected-school">Nenhuma selecionada</span>
                     </div>
                 </div>
-            </div>
 
-            <div class="card">
-                <h2>Produtos do Pedido</h2>
-                <table id="current-order-table">
+                <div class="form-group">
+                    <label for="limpeza-observations">Observações</label>
+                    <textarea id="limpeza-observations" placeholder="Observações sobre o pedido"></textarea>
+                </div>
+
+                <table id="limpeza-order-table" class="table" style="width:100%; border-collapse: collapse;">
                     <thead>
                         <tr>
-                            <th>Produto</th>
-                            <th>Quantidade</th>
-                            <th>Unidade</th>
-                            <th>Ações</th>
+                            <th style="text-align:left; padding:8px; border-bottom:1px solid #dee2e6;">Produto</th>
+                            <th style="text-align:left; padding:8px; border-bottom:1px solid #dee2e6;">Quantidade</th>
+                            <th style="text-align:left; padding:8px; border-bottom:1px solid #dee2e6;">Unidade</th>
+                            <th style="text-align:left; padding:8px; border-bottom:1px solid #dee2e6;">Ações</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <!-- Produtos serao inseridos aqui -->
+                    <tbody id="limpeza-order-tbody">
+                        <tr>
+                            <td colspan="4" class="empty-message">Nenhum produto adicionado. Clique em "Adicionar Produtos" para começar.</td>
+                        </tr>
                     </tbody>
                 </table>
-                <p id="empty-order-message" class="empty-message">Nenhum produto adicionado. Clique no botão abaixo para adicionar produtos.</p>
-                <button id="open-products-modal-btn" class="btn btn-primary">Adicionar Produtos</button>
-                <button id="save-order-btn" class="btn btn-success" style="margin-left: 10px;">Salvar e Gerar PDF</button>
-                <button id="print-order-btn" class="btn btn-secondary" style="margin-left: 10px;">Imprimir</button>
-                <button id="cancel-edit-btn" class="btn btn-secondary" style="display: none;">Cancelar Edição</button>
-            </div>
 
-            <div class="card">
-                <h2>Kits Rápidos</h2>
-                <div class="kit-selection-buttons">
-                    <button id="select-kit-p" class="btn btn-kit">Kit P</button>
-                    <button id="select-kit-m" class="btn btn-kit">Kit M</button>
-                    <button id="select-kit-g" class="btn btn-kit">Kit G</button>
-                    <!-- Removed configure-kits-btn as this user won't configure kits -->
+                <p id="limpeza-empty-message" class="empty-message" style="display:none;">Nenhum produto adicionado. Clique em "Adicionar Produtos" para começar.</p>
+
+                <div class="form-actions" style="display:flex;justify-content:flex-end;margin-top:16px;gap:8px;">
+                    <button type="button" id="limpeza-clear-order" class="btn btn-secondary">
+                        <lord-icon src="https://cdn.lordicon.com/rslnizbt.json" trigger="hover" colors="primary:#ffffff" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
+                        Limpar Pedido
+                    </button>
+                    <button type="button" id="limpeza-print-order" class="btn btn-info">
+                        <lord-icon src="https://cdn.lordicon.com/mxdxazea.json" trigger="hover" colors="primary:#ffffff" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
+                        Imprimir Pedido
+                    </button>
+                    <button type="button" id="limpeza-generate-pdf" class="btn btn-success">
+                        <lord-icon src="https://cdn.lordicon.com/pithnlch.json" trigger="hover" colors="primary:#ffffff" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
+                        Gerar PDF
+                    </button>
                 </div>
             </div>
 
-            <!-- Removed kit-configuration div as this user won't configure kits -->
-
-            <div class="status-console" id="status-console" aria-live="polite">
-                <button type="button" class="status-summary" id="status-console-toggle" aria-expanded="false">
-                    <span class="status-indicator" id="supabase-status-indicator" aria-hidden="true"></span>
-                    <div class="status-texts">
-                        <span class="status-text" id="supabase-status-text">Offline</span>
-                        <span class="status-detail" id="supabase-status-detail">Aguardando Supabase</span>
-                    </div>
-                    <span class="status-caret" aria-hidden="true"></span>
-                </button>
-                <ul class="status-log" id="status-log"></ul>
-            </div>
-
-            <div id="orders-list">
-                <div class="order-history-header">
+            <div class="card" style="margin-top:24px;">
+                <div class="order-history-header" style="margin-bottom:12px;">
                     <h2>Histórico de Pedidos</h2>
                     <div class="order-history-actions">
                         <div class="order-history-search">
-                            <input type="search" id="order-history-search-input" placeholder="Buscar escola no histórico" aria-label="Buscar escola no histórico">
-                            <button type="button" id="order-history-search-btn" class="icon-button" aria-label="Buscar no histórico"></button>
+                            <input type="search" id="limpeza-history-search-input" placeholder="Buscar escola no histórico" aria-label="Buscar escola no histórico">
+                            <button type="button" id="limpeza-history-search-btn" class="icon-button" aria-label="Buscar no histórico"></button>
                         </div>
-                        <button type="button" id="print-latest-order-btn" class="btn btn-secondary btn-sm">Imprimir</button>
+                        <button type="button" id="limpeza-print-latest" class="btn btn-secondary btn-sm">Imprimir</button>
                     </div>
                 </div>
-                <div class="card">
-                    <table id="orders-table">
-                        <thead>
-                            <tr>
-                                <th>Escola</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Saved orders will be inserted here -->
-                        </tbody>
-                    </table>
-                </div>
+                <table class="table" style="width:100%; border-collapse:collapse;">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left; padding:8px; border-bottom:1px solid #dee2e6;">Escola</th>
+                            <th style="text-align:left; padding:8px; border-bottom:1px solid #dee2e6;">Data</th>
+                            <th style="text-align:left; padding:8px; border-bottom:1px solid #dee2e6;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="limpeza-history-tbody"></tbody>
+                </table>
+                <p id="limpeza-history-empty" class="empty-message" style="display:none;">Nenhum pedido registrado ainda.</p>
             </div>
         </div>
     </div>
-    <!-- Supabase client (CDN) and helper - configure by copying supabase-config.example.js -> supabase-config.js and filling keys -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-    <!-- Load project config (supabase-config.js) if present. If you still have only the example, copy it to supabase-config.js -->
-    <script src="js/supabase-config.js"></script>
-    <script src="js/supabase.js"></script>
-    <script src="js/sync-manager.js"></script>
-    <script src="js/modules/status-console.js"></script>
-    <script src="js/modules/main.js"></script>
-    <script src="js/modules/ui.js"></script>
-    <script src="js/modules/events.js"></script>
-    <script src="js/modules/pdf.js"></script>
-    <script src="js/modules/modals.js"></script>
-    <script src="js/modules/unit-conversions.js"></script>
-    <script src="js/user_page.js"></script>
-    <!-- PDF Preview Modal -->
-    <div id="pdf-preview-modal" class="modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; z-index: 9999;">
-        <div class="modal-content" style="width: 90%; height: 90%; background: #fff; position: relative; padding: 8px; box-sizing: border-box;">
-            <button type="button" id="close-pdf-preview" style="position: absolute; right: 8px; top: 8px; z-index:10000;">&times;</button>
-            <button type="button" id="edit-layout-btn" style="position: absolute; right: 88px; top: 8px; z-index:10000;">Editar Layout</button>
-            <button type="button" id="print-pdf-btn" style="position: absolute; right: 48px; top: 8px; z-index:10000;">🖨️</button>
-            <iframe id="pdf-preview-iframe" style="width:100%; height:100%; border: none;" src=""></iframe>
-        </div>
-    </div>
-    <!-- Layout Editor Modal -->
-    <div id="layout-editor-modal" class="modal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; z-index: 10001;">
-        <div class="modal-content" style="width: 90%; max-width: 1000px; height: 90%; background: #fff; position: relative; padding: 12px; box-sizing: border-box; overflow: auto;">
-            <button type="button" id="close-layout-editor" style="position: absolute; right: 8px; top: 8px; z-index:10002;">&times;</button>
-            <h3>Editor de Layout (arraste os blocos para posicionar)</h3>
-            <div id="editor-page-container" style="width: 680px; height: 960px; background: #f9f9f9; margin: 12px auto; position: relative; border: 1px solid #ccc;">
-                <!-- Page placeholder; draggable blocks will be inserted here -->
-            </div>
-            <div style="text-align:center; margin-top:8px;">
-                <button type="button" id="save-layout-btn" class="btn">Salvar Posições</button>
-                <button type="button" id="cancel-layout-btn" class="btn btn-secondary">Cancelar</button>
-            </div>
-        </div>
-    </div>
-    <div id="school-selection-modal" class="modal" style="display: none;">
+
+    <div id="limpeza-school-modal" class="modal" style="display:none;">
         <div class="modal-content">
-            <span class="close-button">&times;</span>
-            <h2>Selecionar Escola para o Kit</h2>
+            <span class="close-button" data-modal-close="limpeza-school-modal">&times;</span>
+            <h2 style="display:flex;align-items:center;gap:8px;">
+                <lord-icon src="https://cdn.lordicon.com/itnqiirz.json" trigger="loop" delay="2000" colors="primary:#0b7285" style="width:32px;height:32px;"></lord-icon>
+                Selecionar Escola
+            </h2>
             <div class="form-group">
-                <label for="modal-sector-select">Setor</label>
-                <select id="modal-sector-select">
+                <label for="limpeza-modal-sector">Setor</label>
+                <select id="limpeza-modal-sector">
                     <option value="">Todos os Setores</option>
                 </select>
             </div>
             <div class="form-group">
-                <label for="modal-school-select">Escola</label>
-                <select id="modal-school-select" required>
+                <label for="limpeza-modal-school">Escola</label>
+                <select id="limpeza-modal-school" required>
                     <option value="">Selecione uma Escola</option>
                 </select>
             </div>
-            <button type="button" id="confirm-kit-school-btn" class="btn">Confirmar</button>
-        </div>
-    </div>
-
-    <!-- Modal de Confirmacao de Pedido -->
-    <div id="order-confirmation-modal" class="modal" style="display: none;">
-        <div class="modal-content modal-lg">
-            <button type="button" class="close-button modal-close-btn" data-modal="order-confirmation-modal">&times;</button>
-            <h2>Confirmar Pedido</h2>
-            <div class="order-summary">
-                <div class="summary-section">
-                    <h3>Informacoes da Escola</h3>
-                    <p><strong>Escola:</strong> <span id="summary-school-name">-</span></p>
-                    <p><strong>Setor:</strong> <span id="summary-school-sector">-</span></p>
-                    <p><strong>Observacoes:</strong> <span id="summary-observations">-</span></p>
-                </div>
-                <div class="summary-section">
-                    <h3>Produtos do Pedido</h3>
-                    <table class="summary-table">
-                        <thead>
-                            <tr>
-                                <th>Produto</th>
-                                <th>Quantidade</th>
-                                <th>Unidade</th>
-                            </tr>
-                        </thead>
-                        <tbody id="summary-products-tbody">
-                        </tbody>
-                    </table>
-                    <p class="summary-total"><strong>Total de Itens:</strong> <span id="summary-total-items">0</span></p>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button type="button" id="confirm-order-btn" class="btn btn-success">Confirmar Pedido</button>
-                <button type="button" class="btn btn-secondary modal-close-btn" data-modal="order-confirmation-modal">Voltar para Edicao</button>
+            <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:8px;">
+                <button type="button" class="btn btn-secondary" data-modal-close="limpeza-school-modal">Cancelar</button>
+                <button type="button" id="limpeza-confirm-school" class="btn btn-primary">Confirmar</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal de Selecao de Kit Rapido Aprimorado -->
-    <div id="quick-kit-modal" class="modal" style="display: none;">
+    <div id="limpeza-product-modal" class="modal" style="display:none;">
         <div class="modal-content modal-lg">
-            <button type="button" class="close-button modal-close-btn" data-modal="quick-kit-modal">&times;</button>
-            <h2 id="quick-kit-modal-title">Revisar Kit</h2>
-            <div class="quick-kit-content">
-                <p class="info-text">Voce pode ajustar as quantidades dos produtos do kit antes de adicion-los ao pedido.</p>
-                <table class="kit-review-table">
+            <span class="close-button" data-modal-close="limpeza-product-modal">&times;</span>
+            <h2 style="display:flex;align-items:center;gap:8px;">
+                <lord-icon src="https://cdn.lordicon.com/cllunfud.json" trigger="loop" delay="2500" colors="primary:#0b7285" style="width:32px;height:32px;"></lord-icon>
+                Adicionar Produtos de Limpeza
+            </h2>
+            <div class="form-group">
+                <input type="search" id="limpeza-product-search" placeholder="Filtrar produtos por nome...">
+            </div>
+            <div class="table-responsive" style="max-height:380px; overflow:auto; border:1px solid #e9ecef; border-radius:8px;">
+                <table class="table">
                     <thead>
                         <tr>
+                            <th style="width:40px;"><input type="checkbox" id="limpeza-product-select-all"></th>
                             <th>Produto</th>
-                            <th>Quantidade</th>
-                            <th>Unidade</th>
-                            <th>Acao</th>
+                            <th style="width:120px;">Quantidade</th>
+                            <th style="width:120px;">Unidade</th>
                         </tr>
                     </thead>
-                    <tbody id="quick-kit-products-tbody">
+                    <tbody id="limpeza-product-modal-tbody"></tbody>
+                </table>
+            </div>
+            <p class="info-message" id="limpeza-product-modal-empty" style="display:none; margin-top:12px;">Nenhum produto encontrado. Cadastre novos produtos de limpeza no painel principal.</p>
+            <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+                <button type="button" class="btn btn-secondary" data-modal-close="limpeza-product-modal">Cancelar</button>
+                <button type="button" id="limpeza-product-apply" class="btn btn-primary">Adicionar Selecionados</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="limpeza-history-view-modal" class="modal" style="display:none;">
+        <div class="modal-content modal-lg">
+            <span class="close-button" data-modal-close="limpeza-history-view-modal">&times;</span>
+            <h2 class="modal-title">
+                <lord-icon src="https://cdn.lordicon.com/hyhnpiza.json" trigger="loop" delay="2100" colors="primary:#0b7285" style="width:28px;height:28px;"></lord-icon>
+                Visualizar Pedido
+            </h2>
+            <div class="order-meta" style="margin-bottom:16px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
+                <div class="info-card">
+                    <strong>Data do Pedido</strong>
+                    <span id="limpeza-view-date">-</span>
+                </div>
+                <div class="info-card">
+                    <strong>Escola</strong>
+                    <span id="limpeza-view-school">-</span>
+                </div>
+                <div class="info-card">
+                    <strong>Setor</strong>
+                    <span id="limpeza-view-sector">-</span>
+                </div>
+            </div>
+            <div class="info-card" style="margin-bottom:16px;">
+                <strong>Observações</strong>
+                <span id="limpeza-view-observations">-</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table" style="width:100%; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left; padding:8px; border-bottom:1px solid #dee2e6;">Produto</th>
+                            <th style="text-align:left; padding:8px; border-bottom:1px solid #dee2e6;">Quantidade</th>
+                            <th style="text-align:left; padding:8px; border-bottom:1px solid #dee2e6;">Unidade</th>
+                        </tr>
+                    </thead>
+                    <tbody id="limpeza-view-products">
+                        <tr>
+                            <td colspan="3" class="empty-message">Nenhum produto encontrado.</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
-            <div class="modal-actions">
-                <button type="button" id="add-kit-to-order-btn" class="btn btn-success">Adicionar Kit ao Pedido</button>
-                <button type="button" class="btn btn-secondary modal-close-btn" data-modal="quick-kit-modal">Cancelar</button>
-            </div>
         </div>
     </div>
 
-    <!-- Modal de Detalhes/Edicao de Pedido Existente -->
-    <div id="order-details-modal" class="modal" style="display: none;">
-        <div class="modal-content modal-lg">
-            <button type="button" class="close-button modal-close-btn" data-modal="order-details-modal">&times;</button>
-            <h2>Detalhes do Pedido</h2>
-            <div class="order-details-content">
-                <div class="details-section">
-                    <h3>Informacoes do Pedido</h3>
-                    <div class="form-group">
-                        <label>Data do Pedido:</label>
-                        <p id="detail-order-date">-</p>
-                    </div>
-                    <div class="form-group">
-                        <label for="detail-order-school">Escola:</label>
-                        <select id="detail-order-school" class="editable-field">
-                            <option value="">Selecione uma Escola</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="detail-order-observations">Observacoes:</label>
-                        <textarea id="detail-order-observations" class="editable-field" placeholder="Observacoes sobre o pedido"></textarea>
-                    </div>
-                </div>
-                <div class="details-section">
-                    <h3>Produtos do Pedido</h3>
-                    <table class="details-products-table">
-                        <thead>
-                            <tr>
-                                <th>Produto</th>
-                                <th>Quantidade</th>
-                                <th>Unidade</th>
-                                <th>Acoes</th>
-                            </tr>
-                        </thead>
-                        <tbody id="detail-products-tbody">
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button type="button" id="save-order-details-btn" class="btn btn-success">Salvar Alteracoes</button>
-                <button type="button" id="delete-order-btn" class="btn btn-danger">Excluir Pedido</button>
-                <button type="button" class="btn btn-secondary modal-close-btn" data-modal="order-details-modal">Cancelar</button>
-            </div>
+    <div id="limpeza-pdf-preview-modal" class="modal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; z-index: 9999;">
+        <div class="modal-content" style="width: 90%; height: 90%; background: #fff; position: relative; padding: 8px; box-sizing: border-box;">
+            <button type="button" id="limpeza-close-pdf-preview" class="close-button" data-modal-close="limpeza-pdf-preview-modal" style="position:absolute;top:8px;right:16px;">&times;</button>
+            <iframe id="limpeza-pdf-preview-iframe" title="Pré-visualização do PDF" style="width:100%;height:100%;border:none;"></iframe>
         </div>
     </div>
 
-    <!-- Modal de Confirmacao de Exclusao de Pedido -->
-    <div id="delete-order-confirmation-modal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <button type="button" class="close-button modal-close-btn" data-modal="delete-order-confirmation-modal">&times;</button>
-            <h2>Confirmar Exclusao</h2>
-            <p>Tem certeza que deseja excluir este pedido? Esta acao nao pode ser desfeita.</p>
-            <div class="modal-actions">
-                <button type="button" id="confirm-delete-order-btn" class="btn btn-danger">Excluir</button>
-                <button type="button" class="btn btn-secondary modal-close-btn" data-modal="delete-order-confirmation-modal">Cancelar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Selecao de Produtos com Tabela -->
-    <div id="products-selection-modal" class="modal" style="display: none;">
-        <div class="modal-content modal-xl">
-            <button type="button" class="close-button modal-close-btn" data-modal="products-selection-modal">&times;</button>
-            <h2>Selecionar Produtos para o Pedido</h2>
-            
-            <div class="products-modal-content">
-                <div class="products-search-section">
-                    <div class="form-group">
-                        <label for="product-search-input">Buscar Produto:</label>
-                        <input type="text" id="product-search-input" placeholder="Digite o nome do produto...">
-                    </div>
-                    <div class="form-group">
-                        <div class="bulk-select-actions">
-                            <button type="button" id="select-all-products-btn" class="btn btn-secondary btn-sm">Marcar Todos</button>
-                            <button type="button" id="deselect-all-products-btn" class="btn btn-secondary btn-sm">Desmarcar Todos</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="products-table-section">
-                    <table class="products-selection-table">
-                        <thead>
-                            <tr>
-                                <th>Produto</th>
-                                <th>Qtd. / Unidade</th>
-                                <th>Produto</th>
-                                <th>Qtd. / Unidade</th>
-                            </tr>
-                        </thead>
-                        <tbody id="products-modal-tbody">
-                            <!-- Produtos serao inseridos aqui dinamicamente em 4 colunas com unidades selecionaveis -->
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="products-added-section">
-                    <h3>Produtos Adicionados ao Pedido</h3>
-                    <table class="added-products-table">
-                        <thead>
-                            <tr>
-                                <th>Produto</th>
-                                <th>Quantidade</th>
-                                <th>Unidade</th>
-                                <th>Acao</th>
-                            </tr>
-                        </thead>
-                        <tbody id="added-products-tbody">
-                            <!-- Produtos adicionados serao exibidos aqui -->
-                        </tbody>
-                    </table>
-                    <p id="no-products-message" class="info-message">Nenhum produto adicionado ainda.</p>
-                </div>
-            </div>
-
-            <div class="modal-actions">
-                <button type="button" id="confirm-products-btn" class="btn btn-success">Confirmar Selecao</button>
-                <button type="button" class="btn btn-secondary modal-close-btn" data-modal="products-selection-modal">Cancelar</button>
-            </div>
-        </div>
-    </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/modules/pdf.js"></script>
+    <script src="js/limpeza_page.js"></script>
 </body>
 </html>
