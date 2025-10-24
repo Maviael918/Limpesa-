@@ -34,5 +34,15 @@ BEGIN
   END IF;
 END$$;
 
--- Nota: a tabela 'stock' já usa 'product' como primary key no schema fornecido.
--- Após executar este script, os comandos upsert(..., { onConflict: 'name' }) deverão funcionar.
+-- Garante que o nome do produto de alimentação seja único
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'food_products_name_unique'
+  ) THEN
+    ALTER TABLE IF EXISTS food_products
+      ADD CONSTRAINT food_products_name_unique UNIQUE (name);
+  END IF;
+END$$;
+
+-- Nota: as tabelas de histórico usam IDs autogerados e não precisam de índices adicionais.

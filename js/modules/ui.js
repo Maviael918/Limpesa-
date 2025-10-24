@@ -9,6 +9,7 @@ window.UI = {
             this.renderSchools();
             this.renderSchoolsTable();
             this.renderProductsTable();
+            this.renderFoodProductsTable();
             this.renderUnitsTable();
             this.renderStockTable();
             this.renderUnitConversionsTable();
@@ -271,6 +272,23 @@ window.UI = {
                 </td>
             `;
             domElements.productsTable.appendChild(row);
+        });
+    },
+
+    renderFoodProductsTable: function() {
+        if (!domElements.foodProductsTable) return;
+        domElements.foodProductsTable.innerHTML = '';
+        foodProducts.forEach((product, index) => {
+            const name = typeof product === 'string' ? product : product.name;
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${name || ''}</td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-warning btn-edit-food-product" data-index="${index}">Editar</button>
+                    <button type="button" class="btn btn-sm btn-delete btn-delete-food-product" data-index="${index}">Excluir</button>
+                </td>
+            `;
+            domElements.foodProductsTable.appendChild(row);
         });
     },
 

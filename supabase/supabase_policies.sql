@@ -28,6 +28,17 @@ CREATE POLICY allow_auth_update_products ON products FOR UPDATE USING (auth.uid(
 DROP POLICY IF EXISTS allow_auth_delete_products ON products;
 CREATE POLICY allow_auth_delete_products ON products FOR DELETE USING (auth.uid() IS NOT NULL);
 
+-- Food products
+ALTER TABLE IF EXISTS food_products ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS allow_public_select_food_products ON food_products;
+CREATE POLICY allow_public_select_food_products ON food_products FOR SELECT USING (true);
+DROP POLICY IF EXISTS allow_auth_insert_food_products ON food_products;
+CREATE POLICY allow_auth_insert_food_products ON food_products FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+DROP POLICY IF EXISTS allow_auth_update_food_products ON food_products;
+CREATE POLICY allow_auth_update_food_products ON food_products FOR UPDATE USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+DROP POLICY IF EXISTS allow_auth_delete_food_products ON food_products;
+CREATE POLICY allow_auth_delete_food_products ON food_products FOR DELETE USING (auth.uid() IS NOT NULL);
+
 -- Unidades
 ALTER TABLE IF EXISTS units ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS allow_public_select_units ON units;
@@ -72,6 +83,17 @@ DROP POLICY IF EXISTS allow_auth_update_orders ON order_history;
 CREATE POLICY allow_auth_update_orders ON order_history FOR UPDATE USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
 DROP POLICY IF EXISTS allow_auth_delete_orders ON order_history;
 CREATE POLICY allow_auth_delete_orders ON order_history FOR DELETE USING (auth.uid() IS NOT NULL);
+
+-- Food Orders
+ALTER TABLE IF EXISTS food_order_history ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS allow_public_select_food_orders ON food_order_history;
+CREATE POLICY allow_public_select_food_orders ON food_order_history FOR SELECT USING (true);
+DROP POLICY IF EXISTS allow_auth_insert_food_orders ON food_order_history;
+CREATE POLICY allow_auth_insert_food_orders ON food_order_history FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+DROP POLICY IF EXISTS allow_auth_update_food_orders ON food_order_history;
+CREATE POLICY allow_auth_update_food_orders ON food_order_history FOR UPDATE USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+DROP POLICY IF EXISTS allow_auth_delete_food_orders ON food_order_history;
+CREATE POLICY allow_auth_delete_food_orders ON food_order_history FOR DELETE USING (auth.uid() IS NOT NULL);
 
 -- Observação: após executar este script, apenas usuários autenticados poderão
 -- realizar INSERT/UPDATE/DELETE. Se precisar que clientes (anon) escrevam,

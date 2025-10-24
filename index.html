@@ -91,6 +91,63 @@
         <div id="orders" class="page active">
             <h1>Novo Pedido</h1>
 
+            <div class="card page-hero-card">
+                <div class="page-hero-body">
+                    <div class="page-hero-text">
+                        <h2>
+                            <lord-icon src="https://cdn.lordicon.com/odavpkmb.json" trigger="hover" colors="primary:#0b7285,secondary:#82c91e" style="width:32px;height:32px;"></lord-icon>
+                            Área de Limpeza
+                        </h2>
+                        <p>Organize pedidos, controle kits rápidos e mantenha o estoque alinhado com o novo visual inspirado na Alimentação.</p>
+                        <div class="page-hero-metrics">
+                            <div class="page-hero-chip">
+                                <lord-icon src="https://cdn.lordicon.com/sbiheqdr.json" trigger="loop" delay="1700" colors="primary:#0b7285" style="width:26px;height:26px;"></lord-icon>
+                                <div>
+                                    <strong>Setor selecionado</strong>
+                                    <span id="order-selected-sector-label">Todos os setores</span>
+                                </div>
+                            </div>
+                            <div class="page-hero-chip">
+                                <lord-icon src="https://cdn.lordicon.com/nocovwne.json" trigger="loop" delay="2000" colors="primary:#0b7285" style="width:26px;height:26px;"></lord-icon>
+                                <div>
+                                    <strong>Escola atual</strong>
+                                    <span id="order-selected-school-label">Nenhuma selecionada</span>
+                                </div>
+                            </div>
+                            <div class="page-hero-chip">
+                                <lord-icon src="https://cdn.lordicon.com/cllunfud.json" trigger="loop" delay="2100" colors="primary:#0b7285" style="width:26px;height:26px;"></lord-icon>
+                                <div>
+                                    <strong>Itens no pedido</strong>
+                                    <span id="order-selected-items-label">0 produtos</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="page-hero-actions">
+                        <button type="button" id="configure-kits-btn" class="btn btn-secondary btn-icon">
+                            <lord-icon src="https://cdn.lordicon.com/gqdnbnwt.json" trigger="hover" colors="primary:#ffffff" style="width:22px;height:22px;"></lord-icon>
+                            Configurar Kits
+                        </button>
+                        <button type="button" id="open-products-modal-btn" class="btn btn-primary btn-icon">
+                            <lord-icon src="https://cdn.lordicon.com/cllunfud.json" trigger="hover" colors="primary:#ffffff" style="width:22px;height:22px;"></lord-icon>
+                            Adicionar Produtos
+                        </button>
+                        <button type="button" id="save-order-btn" class="btn btn-success btn-icon">
+                            <lord-icon src="https://cdn.lordicon.com/pithnlch.json" trigger="hover" colors="primary:#ffffff" style="width:22px;height:22px;"></lord-icon>
+                            Salvar e Gerar PDF
+                        </button>
+                        <button type="button" id="print-order-btn" class="btn btn-secondary btn-icon">
+                            <lord-icon src="https://cdn.lordicon.com/mxdxazea.json" trigger="hover" colors="primary:#ffffff" style="width:22px;height:22px;"></lord-icon>
+                            Imprimir
+                        </button>
+                        <button type="button" id="cancel-edit-btn" class="btn btn-secondary btn-icon" style="display: none;">
+                            <lord-icon src="https://cdn.lordicon.com/jtiihykw.json" trigger="hover" colors="primary:#ffffff" style="width:22px;height:22px;"></lord-icon>
+                            Cancelar Edição
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <div class="status-console" id="status-console" aria-live="polite">
                 <button type="button" class="status-summary" id="status-console-toggle" aria-expanded="false">
                     <span class="status-indicator" id="supabase-status-indicator" aria-hidden="true"></span>
@@ -140,11 +197,7 @@
                         <!-- Produtos serao inseridos aqui -->
                     </tbody>
                 </table>
-                <p id="empty-order-message" class="empty-message">Nenhum produto adicionado. Clique no botão abaixo para adicionar produtos.</p>
-                <button id="open-products-modal-btn" class="btn btn-primary">Adicionar Produtos</button>
-                <button id="save-order-btn" class="btn btn-success" style="margin-left: 10px;">Salvar e Gerar PDF</button>
-                <button id="print-order-btn" class="btn btn-secondary" style="margin-left: 10px;">Imprimir</button>
-                <button id="cancel-edit-btn" class="btn btn-secondary" style="display: none;">Cancelar Edição</button>
+                <p id="empty-order-message" class="empty-message">Nenhum produto adicionado. Utilize as ações acima para incluir itens.</p>
             </div>
 
             <div class="card">
@@ -360,10 +413,26 @@
             <h1>Configurações</h1>
 
             <div class="tabs">
-                <button type="button" class="tab-link active" data-tab="schools">Escolas</button>
-                <button type="button" class="tab-link" data-tab="products-settings">Produtos</button>
-                <button type="button" class="tab-link" data-tab="units">Unidades de Medida</button>
-                <button type="button" class="tab-link" data-tab="unit-conversions">Conversões de Unidades</button>
+                <button type="button" class="tab-link active" data-tab="schools">
+                    <lord-icon src="https://cdn.lordicon.com/itnqiirz.json" trigger="loop" delay="3000" colors="primary:#0b7285" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
+                    Escolas
+                </button>
+                <button type="button" class="tab-link" data-tab="products-settings">
+                    <lord-icon src="https://cdn.lordicon.com/cllunfud.json" trigger="hover" colors="primary:#0b7285" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
+                    Produtos
+                </button>
+                <button type="button" class="tab-link" data-tab="food-products-settings">
+                    <lord-icon src="https://cdn.lordicon.com/etqbfrgp.json" trigger="loop" delay="3200" colors="primary:#0b7285" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
+                    Produtos Alimentação
+                </button>
+                <button type="button" class="tab-link" data-tab="units">
+                    <lord-icon src="https://cdn.lordicon.com/hyhnpiza.json" trigger="hover" colors="primary:#0b7285" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
+                    Unidades de Medida
+                </button>
+                <button type="button" class="tab-link" data-tab="unit-conversions">
+                    <lord-icon src="https://cdn.lordicon.com/isugonwi.json" trigger="hover" colors="primary:#0b7285" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
+                    Conversões de Unidades
+                </button>
                 
             </div>
 
@@ -419,7 +488,10 @@
                         <div class="form-group">
                             <input type="text" id="product-name" placeholder="Nome do Produto" required>
                         </div>
-                        <button type="submit" class="btn">Adicionar Produto</button>
+                        <button type="submit" class="btn">
+                            <lord-icon src="https://cdn.lordicon.com/cllunfud.json" trigger="hover" colors="primary:#ffffff" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
+                            Adicionar Produto
+                        </button>
                     </form>
                 </div>
                 <div class="card">
@@ -432,6 +504,35 @@
                         </thead>
                         <tbody>
                             <!-- Product rows will be inserted here by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+
+            <div id="food-products-settings" class="tab-content">
+                <h2>Produtos de Alimentação</h2>
+                <div class="card">
+                    <form id="add-food-product-form">
+                        <div class="form-group">
+                            <input type="text" id="food-product-name" placeholder="Nome do Produto de Alimentação" required>
+                        </div>
+                        <button type="submit" class="btn">
+                            <lord-icon src="https://cdn.lordicon.com/cllunfud.json" trigger="hover" colors="primary:#ffffff" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
+                            Adicionar Produto de Alimentação
+                        </button>
+                    </form>
+                </div>
+                <div class="card">
+                    <table id="food-products-table">
+                        <thead>
+                            <tr>
+                                <th>Nome do Produto</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Food product rows will be inserted here by JavaScript -->
                         </tbody>
                     </table>
                 </div>
@@ -546,7 +647,10 @@
     <div id="school-selection-modal" class="modal" style="display: none;">
         <div class="modal-content">
             <span class="close-button">&times;</span>
-            <h2>Selecionar Escola para o Kit</h2>
+            <h2 class="modal-title">
+                <lord-icon src="https://cdn.lordicon.com/itnqiirz.json" trigger="loop" delay="2000" colors="primary:#0b7285" style="width:28px;height:28px;"></lord-icon>
+                Selecionar Escola para o Kit
+            </h2>
             <div class="form-group">
                 <label for="modal-sector-select">Setor</label>
                 <select id="modal-sector-select">
@@ -567,7 +671,10 @@
     <div id="order-confirmation-modal" class="modal" style="display: none;">
         <div class="modal-content modal-lg">
             <button type="button" class="close-button modal-close-btn" data-modal="order-confirmation-modal">&times;</button>
-            <h2>Confirmar Pedido</h2>
+            <h2 class="modal-title">
+                <lord-icon src="https://cdn.lordicon.com/bhfjfgqz.json" trigger="loop" delay="1800" colors="primary:#0b7285" style="width:28px;height:28px;"></lord-icon>
+                Confirmar Pedido
+            </h2>
             <div class="order-summary">
                 <div class="summary-section">
                     <h3>Informacoes da Escola</h3>
@@ -602,7 +709,10 @@
     <div id="quick-kit-modal" class="modal" style="display: none;">
         <div class="modal-content modal-lg">
             <button type="button" class="close-button modal-close-btn" data-modal="quick-kit-modal">&times;</button>
-            <h2 id="quick-kit-modal-title">Revisar Kit</h2>
+            <h2 id="quick-kit-modal-title" class="modal-title">
+                <lord-icon src="https://cdn.lordicon.com/ylvuooxd.json" trigger="loop" delay="1600" colors="primary:#0b7285" style="width:28px;height:28px;"></lord-icon>
+                Revisar Kit
+            </h2>
             <div class="quick-kit-content">
                 <p class="info-text">Voce pode ajustar as quantidades dos produtos do kit antes de adicion-los ao pedido.</p>
                 <table class="kit-review-table">
@@ -629,7 +739,10 @@
     <div id="order-details-modal" class="modal" style="display: none;">
         <div class="modal-content modal-lg">
             <button type="button" class="close-button modal-close-btn" data-modal="order-details-modal">&times;</button>
-            <h2>Detalhes do Pedido</h2>
+            <h2 class="modal-title">
+                <lord-icon src="https://cdn.lordicon.com/hyhnpiza.json" trigger="loop" delay="2100" colors="primary:#0b7285" style="width:28px;height:28px;"></lord-icon>
+                Detalhes do Pedido
+            </h2>
             <div class="order-details-content">
                 <div class="details-section">
                     <h3>Informacoes do Pedido</h3>
@@ -676,7 +789,10 @@
     <div id="delete-order-confirmation-modal" class="modal" style="display: none;">
         <div class="modal-content">
             <button type="button" class="close-button modal-close-btn" data-modal="delete-order-confirmation-modal">&times;</button>
-            <h2>Confirmar Exclusao</h2>
+            <h2 class="modal-title">
+                <lord-icon src="https://cdn.lordicon.com/eanmttmw.json" trigger="loop" delay="1800" colors="primary:#c92a2a" style="width:28px;height:28px;"></lord-icon>
+                Confirmar Exclusao
+            </h2>
             <p>Tem certeza que deseja excluir este pedido? Esta acao nao pode ser desfeita.</p>
             <div class="modal-actions">
                 <button type="button" id="confirm-delete-order-btn" class="btn btn-danger">Excluir</button>
@@ -689,7 +805,10 @@
     <div id="products-selection-modal" class="modal" style="display: none;">
         <div class="modal-content modal-xl">
             <button type="button" class="close-button modal-close-btn" data-modal="products-selection-modal">&times;</button>
-            <h2>Selecionar Produtos para o Pedido</h2>
+            <h2 class="modal-title">
+                <lord-icon src="https://cdn.lordicon.com/cllunfud.json" trigger="loop" delay="2000" colors="primary:#0b7285" style="width:28px;height:28px;"></lord-icon>
+                Selecionar Produtos para o Pedido
+            </h2>
             
                 <div class="products-modal-content">
                     <div class="products-search-section">

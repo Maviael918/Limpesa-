@@ -80,6 +80,13 @@ window.Events = {
             });
         }
 
+        if (domElements.addFoodProductForm) {
+            domElements.addFoodProductForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                await window.Events.handleAddOrUpdateFoodProduct();
+            });
+        }
+
         // Units form
         if (domElements.addUnitForm) {
             domElements.addUnitForm.addEventListener('submit', async function(event) {
@@ -321,6 +328,15 @@ window.Events = {
             if (event.target.classList.contains('btn-delete-product')) {
                 const index = parseInt(event.target.dataset.index, 10);
                 await window.Events.handleDeleteProduct(index);
+            }
+
+            if (event.target.classList.contains('btn-edit-food-product')) {
+                const index = parseInt(event.target.dataset.index, 10);
+                window.Events.startEditFoodProduct(index);
+            }
+            if (event.target.classList.contains('btn-delete-food-product')) {
+                const index = parseInt(event.target.dataset.index, 10);
+                await window.Events.handleDeleteFoodProduct(index);
             }
 
             // Units actions
@@ -955,6 +971,92 @@ window.Events = {
                 if (stockError) throw stockError;
             } catch (error) {
                 console.error('Erro ao remover produto/estoque no Supabase:', error);
+            }
+        }
+    },
+
+    handleAddOrUpdateFoodProduct: async function() {
+        if (!domElements.addFoodProductForm) return;
+        const name = domElements.foodProductNameInput?.value?.trim();
+        if (!name) {
+            alert('Informe o nome do produto de alimentação.');
+            return;
+        }
+
+        const data = { name };
+        const isEditing = editingFoodProductIndex !== null;
+        const originalName = isEditing
+            ? (domElements.addFoodProductForm?.dataset.editingOriginalFoodName || foodProducts[editingFoodProductIndex]?.name || '')
+            : null;
+
+        if (editingFoodProductIndex !== null) {
+            foodProducts[editingFoodProductIndex] = data;
+            editingFoodProductIndex = null;
+            const submitBtn = domElements.addFoodProductForm.querySelector('button[type="submit"]');
+            if (submitBtn) submitBtn.textContent = 'Adicionar Produto de Alimentação';
+            if (domElements.addFoodProductForm?.dataset) {
+                domElements.addFoodProductForm.dataset.editingOriginalFoodName = '';
+            }
+        } else {
+            foodProducts.push(data);
+        }
+
+        domElements.addFoodProductForm.reset();
+        window.Main.saveDataToLocalStorage();
+        window.UI.reRenderUI();
+
+        if (window.isSupabaseConfigured?.()) {
+            try {
+                if (isEditing && originalName && originalName !== name) {
+                    await window.deleteFoodProductByName(originalName);
+                }
+                const { error } = await window.upsertFoodProduct(data);
+                if (error) throw error;
+            } catch (error) {
+                console.error('Erro ao sincronizar produto de alimentação com Supabase:', error);
+            }
+        }
+    },
+
+    startEditFoodProduct: function(index) {
+        if (!foodProducts[index] || !domElements.addFoodProductForm) return;
+        const product = foodProducts[index];
+        const name = typeof product === 'string' ? product : product.name;
+        editingFoodProductIndex = index;
+        domElements.foodProductNameInput.value = name || '';
+        if (domElements.addFoodProductForm?.dataset) {
+            domElements.addFoodProductForm.dataset.editingOriginalFoodName = name || '';
+        }
+        const submitBtn = domElements.addFoodProductForm.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.textContent = 'Salvar Produto de Alimentação';
+        window.UI.showPage('settings');
+        window.UI.showTab('products-settings');
+    },
+
+    handleDeleteFoodProduct: async function(index) {
+        if (index < 0 || index >= foodProducts.length) return;
+        if (!confirm('Deseja remover este produto de alimentação?')) return;
+        const removed = foodProducts.splice(index, 1)[0];
+        const removedName = typeof removed === 'string' ? removed : removed?.name;
+        if (editingFoodProductIndex === index) {
+            editingFoodProductIndex = null;
+            domElements.addFoodProductForm?.reset();
+            const submitBtn = domElements.addFoodProductForm?.querySelector('button[type="submit"]');
+            if (submitBtn) submitBtn.textContent = 'Adicionar Produto de Alimentação';
+            if (domElements.addFoodProductForm?.dataset) domElements.addFoodProductForm.dataset.editingOriginalFoodName = '';
+        } else if (editingFoodProductIndex !== null && editingFoodProductIndex > index) {
+            editingFoodProductIndex -= 1;
+        }
+
+        window.Main.saveDataToLocalStorage();
+        window.UI.reRenderUI();
+
+        if (removedName && window.isSupabaseConfigured?.()) {
+            try {
+                const { error } = await window.deleteFoodProductByName(removedName);
+                if (error) throw error;
+            } catch (error) {
+                console.error('Erro ao remover produto de alimentação no Supabase:', error);
             }
         }
     },

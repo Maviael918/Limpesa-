@@ -2,6 +2,7 @@
 
 const SUPABASE_LOG_PREFIX = '[Supabase]';
 const ORDER_HISTORY_TABLE = 'order_history';
+const FOOD_ORDER_HISTORY_TABLE = 'food_order_history';
 
 function isSupabaseConfigured() {
     return typeof window !== 'undefined' &&
@@ -140,6 +141,51 @@ async function deleteProductByName(name) {
         return { data: true, error: null };
     } catch (error) {
         console.error(`${SUPABASE_LOG_PREFIX} Erro ao remover produto:`, error);
+        return { data: null, error };
+    }
+}
+
+async function upsertFoodProduct(productData) {
+    const { client, error: configError } = getClientOrError('Upsert produto alimentação');
+    if (configError) {
+        return { data: null, error: configError };
+    }
+
+    try {
+        const { data, error } = await client
+            .from('food_products')
+            .upsert({ name: productData.name }, { onConflict: 'name' })
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        console.log(`${SUPABASE_LOG_PREFIX} Produto de alimentação sincronizado`, data);
+        return { data, error: null };
+    } catch (error) {
+        console.error(`${SUPABASE_LOG_PREFIX} Erro ao sincronizar produto de alimentação:`, error);
+        return { data: null, error };
+    }
+}
+
+async function deleteFoodProductByName(name) {
+    const { client, error: configError } = getClientOrError('Remover produto alimentação');
+    if (configError) {
+        return { data: null, error: configError };
+    }
+
+    try {
+        const { error } = await client
+            .from('food_products')
+            .delete()
+            .eq('name', name);
+
+        if (error) throw error;
+
+        console.log(`${SUPABASE_LOG_PREFIX} Produto de alimentação removido`, name);
+        return { data: true, error: null };
+    } catch (error) {
+        console.error(`${SUPABASE_LOG_PREFIX} Erro ao remover produto de alimentação:`, error);
         return { data: null, error };
     }
 }
@@ -345,12 +391,145 @@ async function deleteOrder(orderId) {
     }
 }
 
+async function saveFoodOrder(orderData) {
+    const { client, error: configError } = getClientOrError('Salvar pedido alimentação');
+    if (configError) {
+        return { data: null, error: configError };
+    }
+
+    try {
+        const isUpdate = !!(orderData?.id) && !!orderData?.wasSynced && !orderData?.pendingSync;
+        const orderDate = normalizeOrderDate(orderData);
+        const payload = {
+            order_date: orderDate,
+            school_data: orderData.school,
+            items_data: orderData.items,
+            observations: orderData.observations ?? null
+        };
+
+        let response;
+
+        if (isUpdate) {
+            response = await client
+                .from(FOOD_ORDER_HISTORY_TABLE)
+                .update(payload)
+                .eq('id', orderData.id)
+                .select()
+                .maybeSingle();
+        } else {
+            response = await client
+                .from(FOOD_ORDER_HISTORY_TABLE)
+                .insert(payload)
+                .select()
+                .maybeSingle();
+        }
+
+        if (response.error) throw response.error;
+
+        const saved = response.data || null;
+        console.log(`${SUPABASE_LOG_PREFIX} Pedido alimentação ${isUpdate ? 'atualizado' : 'criado'}`, saved);
+        return { data: saved, error: null };
+    } catch (error) {
+        if (error?.code === '42P01') {
+            console.warn(`${SUPABASE_LOG_PREFIX} Tabela ${FOOD_ORDER_HISTORY_TABLE} ausente. Utilizando fallback ${ORDER_HISTORY_TABLE}.`);
+            try {
+                return await saveOrder(orderData);
+            } catch (fallbackError) {
+                console.error(`${SUPABASE_LOG_PREFIX} Fallback para ${ORDER_HISTORY_TABLE} falhou:`, fallbackError);
+                return { data: null, error: fallbackError };
+            }
+        }
+        console.error(`${SUPABASE_LOG_PREFIX} Erro ao salvar pedido alimentação:`, error);
+        return { data: null, error };
+    }
+}
+
+async function deleteFoodOrder(orderId) {
+    const { client, error: configError } = getClientOrError('Remover pedido alimentação');
+    if (configError) {
+        return { data: null, error: configError };
+    }
+
+    try {
+        const { error } = await client
+            .from(FOOD_ORDER_HISTORY_TABLE)
+            .delete()
+            .eq('id', orderId);
+
+        if (error) throw error;
+
+        console.log(`${SUPABASE_LOG_PREFIX} Pedido alimentação removido`, orderId);
+        return { data: true, error: null };
+    } catch (error) {
+        if (error?.code === '42P01') {
+            console.warn(`${SUPABASE_LOG_PREFIX} Tabela ${FOOD_ORDER_HISTORY_TABLE} ausente. Utilizando fallback ${ORDER_HISTORY_TABLE}.`);
+            try {
+                return await deleteOrder(orderId);
+            } catch (fallbackError) {
+                console.error(`${SUPABASE_LOG_PREFIX} Fallback para remover em ${ORDER_HISTORY_TABLE} falhou:`, fallbackError);
+                return { data: null, error: fallbackError };
+            }
+        }
+        console.error(`${SUPABASE_LOG_PREFIX} Erro ao remover pedido alimentação:`, error);
+        return { data: null, error };
+    }
+}
+
+async function fetchFoodOrders(options = {}) {
+    const { limit = null } = options;
+    const { client, error: configError } = getClientOrError('Listar pedidos alimentação');
+    if (configError) {
+        return { data: null, error: configError };
+    }
+
+    try {
+        let query = client
+            .from(FOOD_ORDER_HISTORY_TABLE)
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (Number.isInteger(limit) && limit > 0) {
+            query = query.limit(limit);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        return { data, error: null };
+    } catch (error) {
+        if (error?.code === '42P01') {
+            console.warn(`${SUPABASE_LOG_PREFIX} Tabela ${FOOD_ORDER_HISTORY_TABLE} ausente. Utilizando fallback ${ORDER_HISTORY_TABLE}.`);
+            try {
+                let fallbackQuery = client
+                    .from(ORDER_HISTORY_TABLE)
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (Number.isInteger(limit) && limit > 0) {
+                    fallbackQuery = fallbackQuery.limit(limit);
+                }
+
+                const { data: fallbackData, error: fallbackError } = await fallbackQuery;
+                if (fallbackError) throw fallbackError;
+                return { data: fallbackData, error: null };
+            } catch (fallbackError) {
+                console.error(`${SUPABASE_LOG_PREFIX} Fallback para listar em ${ORDER_HISTORY_TABLE} falhou:`, fallbackError);
+                return { data: null, error: fallbackError };
+            }
+        }
+        console.error(`${SUPABASE_LOG_PREFIX} Erro ao listar pedidos alimentação:`, error);
+        return { data: null, error };
+    }
+}
+
 // Export globals para o restante da aplicação
 window.isSupabaseConfigured = isSupabaseConfigured;
 window.upsertSchool = upsertSchool;
 window.deleteSchoolByName = deleteSchoolByName;
 window.upsertProduct = upsertProduct;
 window.deleteProductByName = deleteProductByName;
+window.upsertFoodProduct = upsertFoodProduct;
+window.deleteFoodProductByName = deleteFoodProductByName;
 window.upsertUnit = upsertUnit;
 window.deleteUnitByName = deleteUnitByName;
 window.upsertStock = upsertStock;
@@ -360,6 +539,10 @@ window.upsertKit = replaceKitItems; // compatibilidade com chamadas existentes
 window.saveOrder = saveOrder;
 window.insertOrder = saveOrder; // compatibilidade retroativa
 window.deleteOrder = deleteOrder;
+window.saveFoodOrder = saveFoodOrder;
+window.deleteFoodOrder = deleteFoodOrder;
+window.fetchFoodOrders = fetchFoodOrders;
 window.ORDER_HISTORY_TABLE = ORDER_HISTORY_TABLE;
+window.FOOD_ORDER_HISTORY_TABLE = FOOD_ORDER_HISTORY_TABLE;
 
 console.log(`${SUPABASE_LOG_PREFIX} Módulo carregado`);

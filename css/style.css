@@ -86,6 +86,105 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
+.page-hero-card {
+    overflow: hidden;
+    border: 1px solid #e9ecef;
+    background: linear-gradient(135deg, #f8fbff 0%, #f5fff9 100%);
+    animation: fadeInUp 0.35s ease;
+}
+
+.page-hero-body {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+}
+
+.page-hero-text h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 10px;
+}
+
+.page-hero-text p {
+    margin: 0 0 16px;
+    color: #495057;
+    max-width: 520px;
+}
+
+.page-hero-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.page-hero-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    padding: 10px 14px;
+    min-width: 220px;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.page-hero-chip strong {
+    display: block;
+    font-size: 0.85rem;
+    color: #343a40;
+}
+
+.page-hero-chip span {
+    display: block;
+    color: #0b7285;
+    font-weight: 600;
+}
+
+.page-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    min-width: 260px;
+    justify-content: flex-end;
+}
+
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-icon lord-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.modal-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 16px;
+    font-size: 1.3rem;
+    color: #212529;
+}
+
+.modal-title lord-icon {
+    width: 26px;
+    height: 26px;
+}
+
+.order-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 16px;
+}
+
 /* Button Styles */
 .btn {
     display: inline-block;
@@ -473,6 +572,32 @@ table tbody tr:hover {
 
 .status-console.is-expanded {
     padding-bottom: 12px;
+}
+
+.info-card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 10px 12px;
+    background-color: #f8f9fa;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 68px;
+}
+
+.info-card strong {
+    color: #343a40;
+    font-size: 0.95rem;
+}
+
+.info-card span {
+    color: #495057;
+    font-size: 0.95rem;
+}
+
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
 }
 
 .order-pending-badge {

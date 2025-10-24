@@ -5,6 +5,11 @@ window.Main = {
         try {
             schools = JSON.parse(localStorage.getItem('schools')) || [];
             products = JSON.parse(localStorage.getItem('products')) || [];
+            if (!Array.isArray(products)) products = [];
+            products = products.map(product => typeof product === 'string' ? { name: product } : product);
+            foodProducts = JSON.parse(localStorage.getItem('foodProducts')) || [];
+            if (!Array.isArray(foodProducts)) foodProducts = [];
+            foodProducts = foodProducts.map(product => typeof product === 'string' ? { name: product } : product);
             units = JSON.parse(localStorage.getItem('units')) || [];
             stock = JSON.parse(localStorage.getItem('stock')) || {};
             kits = JSON.parse(localStorage.getItem('kits')) || { p: [], m: [], g: [] };
@@ -31,6 +36,7 @@ window.Main = {
             // Inicializar com arrays vazios em caso de erro
             schools = [];
             products = [];
+            foodProducts = [];
             units = [];
             stock = {};
             kits = { p: [], m: [], g: [] };
@@ -43,6 +49,7 @@ window.Main = {
         try {
             localStorage.setItem('schools', JSON.stringify(schools));
             localStorage.setItem('products', JSON.stringify(products));
+            localStorage.setItem('foodProducts', JSON.stringify(foodProducts));
             localStorage.setItem('units', JSON.stringify(units));
             localStorage.setItem('stock', JSON.stringify(stock));
             localStorage.setItem('kits', JSON.stringify(kits));
@@ -119,6 +126,9 @@ window.Main = {
             addProductForm: document.getElementById('add-product-form'),
             productNameInput: document.getElementById('product-name'),
             productsTable: document.getElementById('products-table')?.querySelector('tbody'),
+            addFoodProductForm: document.getElementById('add-food-product-form'),
+            foodProductNameInput: document.getElementById('food-product-name'),
+            foodProductsTable: document.getElementById('food-products-table')?.querySelector('tbody'),
 
             // Forms and Inputs - Units
             addUnitForm: document.getElementById('add-unit-form'),

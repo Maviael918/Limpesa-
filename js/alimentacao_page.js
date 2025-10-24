@@ -1,0 +1,850 @@
+// alimentacao_page.js - fluxo simplificado para geração de pedidos de alimentação
+(function() {
+    const state = {
+        schools: [],
+        foodProducts: [],
+        units: [],
+        selectedSector: '',
+        selectedSchool: null,
+        items: [],
+        observations: '',
+        history: [],
+        historySearchTerm: ''
+    };
+
+    const dom = {};
+
+    function queryDom() {
+        dom.configureProductsBtn = document.getElementById('cadastrar-produto-alimentacao');
+        dom.selectSchoolBtn = document.getElementById('alimentacao-select-school-btn');
+        dom.openProductModalBtn = document.getElementById('alimentacao-open-product-modal');
+        dom.generatePdfBtn = document.getElementById('alimentacao-generate-pdf');
+        dom.clearOrderBtn = document.getElementById('alimentacao-clear-order');
+        dom.selectedSector = document.getElementById('alimentacao-selected-sector');
+        dom.selectedSchool = document.getElementById('alimentacao-selected-school');
+        dom.observationsInput = document.getElementById('alimentacao-observations');
+        dom.orderTableBody = document.getElementById('alimentacao-order-tbody');
+        dom.emptyMessage = document.getElementById('alimentacao-empty-message');
+
+        dom.schoolModal = document.getElementById('alimentacao-school-modal');
+        dom.schoolModalCloseBtns = dom.schoolModal?.querySelectorAll('[data-modal-close="alimentacao-school-modal"]');
+        dom.schoolModalConfirmBtn = document.getElementById('alimentacao-confirm-school');
+        dom.modalSectorSelect = document.getElementById('alimentacao-modal-sector');
+        dom.modalSchoolSelect = document.getElementById('alimentacao-modal-school');
+
+        dom.productModal = document.getElementById('alimentacao-product-modal');
+        dom.productModalCloseBtns = dom.productModal?.querySelectorAll('[data-modal-close="alimentacao-product-modal"]');
+        dom.productModalBody = document.getElementById('alimentacao-product-modal-tbody');
+        dom.productModalEmpty = document.getElementById('alimentacao-product-modal-empty');
+        dom.productModalSelectAll = document.getElementById('alimentacao-product-select-all');
+        dom.productModalApplyBtn = document.getElementById('alimentacao-product-apply');
+        dom.productModalSearch = document.getElementById('alimentacao-product-search');
+
+        dom.historyTableBody = document.getElementById('alimentacao-history-tbody');
+        dom.historyEmptyMessage = document.getElementById('alimentacao-history-empty');
+        dom.historySearchInput = document.getElementById('alimentacao-history-search-input');
+        dom.historySearchBtn = document.getElementById('alimentacao-history-search-btn');
+        dom.printLatestHistoryBtn = document.getElementById('alimentacao-print-latest');
+    }
+
+    function normalizeHistoryEntry(raw) {
+        if (!raw) return null;
+        const orderDate = raw.order_date || raw.date || new Date().toISOString().split('T')[0];
+        const createdAt = raw.created_at || raw.localCreatedAt || new Date().toISOString();
+        const localCreatedAt = raw.localCreatedAt || createdAt;
+        const localId = raw.localId || raw.id || localCreatedAt || Date.now();
+        return {
+            id: raw.id ?? null,
+            localId,
+            order_date: orderDate,
+            date: raw.date || formatHistoryDate(orderDate),
+            created_at: createdAt,
+            school: raw.school || raw.school_data || null,
+            items: Array.isArray(raw.items) ? raw.items : Array.isArray(raw.items_data) ? raw.items_data : [],
+            observations: raw.observations ?? '',
+            pendingSync: !!raw.pendingSync,
+            wasSynced: raw.wasSynced ?? !!raw.id,
+            lastSyncError: raw.lastSyncError || null,
+            localCreatedAt
+        };
+    }
+
+    function getHistoryTimestamp(entry) {
+        if (!entry) return 0;
+        const candidates = [entry.created_at, entry.order_date, entry.localCreatedAt];
+        for (const value of candidates) {
+            if (!value) continue;
+            const parsed = new Date(value);
+            if (!Number.isNaN(parsed.getTime())) {
+                return parsed.getTime();
+            }
+        }
+        return 0;
+    }
+
+    function formatHistoryDate(value) {
+        if (!value) return '-';
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+            return value;
+        }
+        const parsed = new Date(value);
+        if (!Number.isNaN(parsed.getTime())) {
+            return parsed.toLocaleDateString('pt-BR');
+        }
+        return value;
+    }
+
+    function saveHistoryToLocalStorage() {
+        try {
+            const serialized = JSON.stringify(state.history);
+            localStorage.setItem('foodOrderHistory', serialized);
+            localStorage.setItem('foodOrders', serialized);
+        } catch (_) {}
+    }
+
+    function loadFromLocalStorage() {
+        try {
+            const storedSchools = JSON.parse(localStorage.getItem('schools'));
+            if (Array.isArray(storedSchools)) state.schools = storedSchools;
+        } catch (_) {}
+
+        try {
+            const storedFood = JSON.parse(localStorage.getItem('foodProducts'));
+            if (Array.isArray(storedFood)) {
+                state.foodProducts = storedFood.map(item => typeof item === 'string' ? { name: item } : item);
+            }
+        } catch (_) {}
+
+        try {
+            const storedUnits = JSON.parse(localStorage.getItem('units'));
+            if (Array.isArray(storedUnits)) {
+                state.units = storedUnits.map(unit => typeof unit === 'string' ? { name: unit } : unit);
+            }
+        } catch (_) {}
+
+        try {
+            let storedHistory = null;
+            const primary = localStorage.getItem('foodOrderHistory');
+            if (primary) {
+                storedHistory = JSON.parse(primary);
+            } else {
+                const legacy = localStorage.getItem('foodOrders');
+                if (legacy) storedHistory = JSON.parse(legacy);
+            }
+            if (Array.isArray(storedHistory)) {
+                state.history = storedHistory
+                    .map(normalizeHistoryEntry)
+                    .filter(entry => entry);
+            }
+        } catch (_) {}
+    }
+
+    async function fetchFromSupabase(options = {}) {
+        const { forceHistory = false } = options;
+        const supa = window.supabaseClient;
+        if (!supa) return;
+
+        if (state.schools.length === 0) {
+            try {
+                const { data, error } = await supa.from('schools').select('*').order('name');
+                if (!error && Array.isArray(data)) {
+                    state.schools = data.map(school => ({
+                        name: school.name,
+                        sector: school.sector,
+                        managerName: school.manager_name,
+                        address: school.address,
+                        modality: school.modality,
+                        students: school.students
+                    }));
+                    localStorage.setItem('schools', JSON.stringify(state.schools));
+                }
+            } catch (err) {
+                console.error('Erro ao carregar escolas do Supabase:', err);
+            }
+        }
+
+        if (state.foodProducts.length === 0) {
+            try {
+                const { data, error } = await supa.from('food_products').select('*').order('name');
+                if (!error && Array.isArray(data)) {
+                    state.foodProducts = data.map(item => ({ name: item.name }));
+                    localStorage.setItem('foodProducts', JSON.stringify(state.foodProducts));
+                }
+            } catch (err) {
+                console.error('Erro ao carregar produtos de alimentação do Supabase:', err);
+            }
+        }
+
+        if (state.units.length === 0) {
+            try {
+                const { data, error } = await supa.from('units').select('*').order('name');
+                if (!error && Array.isArray(data)) {
+                    state.units = data.map(unit => ({ name: unit.name }));
+                    localStorage.setItem('units', JSON.stringify(state.units));
+                }
+            } catch (err) {
+                console.error('Erro ao carregar unidades do Supabase:', err);
+            }
+        }
+
+        if (forceHistory || state.history.length === 0) {
+            const pendingLocalHistory = state.history.filter(entry => entry?.pendingSync);
+            try {
+                let data;
+                let error;
+
+                if (typeof window.fetchFoodOrders === 'function') {
+                    const result = await window.fetchFoodOrders();
+                    data = result?.data;
+                    error = result?.error;
+                } else {
+                    const result = await supa
+                        .from('food_order_history')
+                        .select('*')
+                        .order('created_at', { ascending: false });
+                    data = result?.data;
+                    error = result?.error;
+                }
+
+                if (error) throw error;
+
+                if (Array.isArray(data)) {
+                    const remoteHistory = data
+                        .map(normalizeHistoryEntry)
+                        .filter(entry => entry);
+                    const mergedHistory = [...remoteHistory];
+
+                    if (pendingLocalHistory.length) {
+                        const remoteIds = new Map();
+                        remoteHistory.forEach((entry, index) => {
+                            if (entry?.id !== null && entry?.id !== undefined) {
+                                remoteIds.set(String(entry.id), index);
+                            }
+                        });
+
+                        pendingLocalHistory.forEach(localEntry => {
+                            if (!localEntry) return;
+                            const localId = localEntry.id;
+                            if (localId !== null && localId !== undefined) {
+                                const remoteIndex = remoteIds.get(String(localId));
+                                if (remoteIndex !== undefined) {
+                                    mergedHistory[remoteIndex] = {
+                                        ...mergedHistory[remoteIndex],
+                                        ...localEntry,
+                                        pendingSync: !!localEntry.pendingSync
+                                    };
+                                    return;
+                                }
+                            }
+                            mergedHistory.push(localEntry);
+                        });
+                    }
+
+                    state.history = mergedHistory;
+                    saveHistoryToLocalStorage();
+                }
+            } catch (err) {
+                console.error('Erro ao carregar histórico de alimentação do Supabase:', err);
+            }
+        }
+    }
+
+    function renderSchoolInfo() {
+        if (!dom.selectedSector || !dom.selectedSchool) return;
+        dom.selectedSector.textContent = state.selectedSector || '-';
+        dom.selectedSchool.textContent = state.selectedSchool?.name || 'Nenhuma selecionada';
+    }
+
+    function renderItems() {
+        if (!dom.orderTableBody || !dom.emptyMessage) return;
+        dom.orderTableBody.innerHTML = '';
+        if (!state.items.length) {
+            dom.emptyMessage.style.display = 'block';
+            return;
+        }
+        dom.emptyMessage.style.display = 'none';
+
+        state.items.forEach((item, index) => {
+            const row = dom.orderTableBody.insertRow();
+            row.innerHTML = `
+                <td>${item.product}</td>
+                <td>${item.quantity}</td>
+                <td>${item.unit}</td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-delete" data-index="${index}">Remover</button>
+                </td>
+            `;
+        });
+    }
+
+    function renderHistory() {
+        if (!dom.historyTableBody) return;
+        dom.historyTableBody.innerHTML = '';
+
+        const annotated = state.history.map((entry, index) => ({ entry, index }));
+        annotated.sort((a, b) => getHistoryTimestamp(b.entry) - getHistoryTimestamp(a.entry));
+
+        const searchTerm = (state.historySearchTerm || '').trim().toLowerCase();
+        const visibleEntries = searchTerm
+            ? annotated.filter(item => (item.entry.school?.name || '').toLowerCase().includes(searchTerm))
+            : annotated.slice(0, 10);
+
+        if (!visibleEntries.length) {
+            if (dom.historyEmptyMessage) {
+                dom.historyEmptyMessage.textContent = searchTerm
+                    ? 'Nenhum pedido encontrado para a busca.'
+                    : 'Nenhum pedido registrado ainda.';
+                dom.historyEmptyMessage.style.display = 'block';
+            }
+            return;
+        }
+        if (dom.historyEmptyMessage) dom.historyEmptyMessage.style.display = 'none';
+
+        visibleEntries.forEach(({ entry, index }) => {
+            const row = dom.historyTableBody.insertRow();
+            if (entry.pendingSync) {
+                row.classList.add('order-row-pending');
+            }
+
+            const schoolCell = row.insertCell();
+            schoolCell.textContent = entry.school?.name || 'Escola não informada';
+
+            const dateCell = row.insertCell();
+            dateCell.textContent = entry.date || formatHistoryDate(entry.order_date);
+
+            const actionsCell = row.insertCell();
+
+            const pdfBtn = document.createElement('button');
+            pdfBtn.type = 'button';
+            pdfBtn.className = 'btn btn-info btn-sm alimentacao-history-pdf';
+            pdfBtn.dataset.historyIndex = String(index);
+            pdfBtn.textContent = 'Baixar PDF';
+            actionsCell.appendChild(pdfBtn);
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = 'btn btn-delete alimentacao-history-delete';
+            deleteBtn.dataset.historyIndex = String(index);
+            deleteBtn.style.marginLeft = '6px';
+            deleteBtn.textContent = 'Excluir';
+            actionsCell.appendChild(deleteBtn);
+        });
+    }
+
+    function upsertHistoryEntry(rawEntry) {
+        const normalized = normalizeHistoryEntry(rawEntry);
+        if (!normalized) return;
+
+        const hasId = normalized.id !== null && normalized.id !== undefined;
+        const existingIndex = state.history.findIndex(entry => {
+            if (!entry) return false;
+            if (hasId) return entry.id === normalized.id;
+            return entry.localCreatedAt === normalized.localCreatedAt;
+        });
+
+        if (existingIndex >= 0) {
+            state.history[existingIndex] = { ...state.history[existingIndex], ...normalized };
+        } else {
+            state.history.unshift(normalized);
+        }
+
+        saveHistoryToLocalStorage();
+        renderHistory();
+    }
+
+    async function handleHistoryAction(event) {
+        const button = event.target.closest('button');
+        if (!button) return;
+
+        const index = Number(button.dataset.historyIndex);
+        if (!Number.isInteger(index)) return;
+
+        const order = state.history[index];
+        if (!order) return;
+
+        if (button.classList.contains('alimentacao-history-pdf')) {
+            const payload = {
+                ...order,
+                date: formatHistoryDate(order.order_date || order.date),
+                school: order.school || {}
+            };
+
+            try {
+                await window.PDF.generateOrderPdf(payload, true);
+            } catch (error) {
+                console.error('Erro ao gerar PDF do histórico:', error);
+                alert('Não foi possível gerar o PDF do pedido selecionado.');
+            }
+            return;
+        }
+
+        if (button.classList.contains('alimentacao-history-delete')) {
+            if (!confirm('Deseja remover este pedido do histórico?')) return;
+
+            state.history.splice(index, 1);
+            saveHistoryToLocalStorage();
+            renderHistory();
+
+            if (order.id && window.isSupabaseConfigured?.()) {
+                try {
+                    await window.deleteFoodOrder(order.id);
+                } catch (error) {
+                    console.error('Erro ao remover pedido de alimentação no Supabase:', error);
+                }
+            }
+        }
+    }
+
+    function handleHistorySearch(value) {
+        const raw = value || '';
+        const trimmed = raw.trim();
+        state.historySearchTerm = trimmed;
+        if (dom.historySearchInput && dom.historySearchInput.value !== trimmed) {
+            dom.historySearchInput.value = trimmed;
+        }
+        renderHistory();
+    }
+
+    async function syncPendingHistory() {
+        if (!window.isSupabaseConfigured?.()) return;
+        const pending = state.history.filter(entry => entry?.pendingSync);
+        if (!pending.length) return;
+
+        let changed = false;
+        for (const entry of pending) {
+            const payload = {
+                ...entry,
+                school: entry.school,
+                items: entry.items,
+                observations: entry.observations,
+                pendingSync: entry.pendingSync,
+                wasSynced: entry.wasSynced
+            };
+
+            const { data, error } = await persistFoodOrder(payload);
+            if (!error && data?.id) {
+                entry.id = data.id;
+                entry.order_date = data.order_date;
+                entry.created_at = data.created_at;
+                entry.date = formatHistoryDate(data.order_date);
+                entry.pendingSync = false;
+                entry.wasSynced = true;
+                entry.lastSyncError = null;
+                changed = true;
+            } else if (error) {
+                entry.lastSyncError = error.message || 'Erro desconhecido';
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            saveHistoryToLocalStorage();
+            renderHistory();
+        }
+    }
+
+    function populateSectorOptions() {
+        if (!dom.modalSectorSelect) return;
+        const sectors = [...new Set(state.schools.map(s => s.sector).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+        dom.modalSectorSelect.innerHTML = '<option value="">Todos os Setores</option>';
+        sectors.forEach(sector => {
+            const option = document.createElement('option');
+            option.value = sector;
+            option.textContent = sector;
+            dom.modalSectorSelect.appendChild(option);
+        });
+        if (state.selectedSector) {
+            dom.modalSectorSelect.value = state.selectedSector;
+        }
+    }
+
+    function populateSchoolOptions() {
+        if (!dom.modalSchoolSelect) return;
+        const sectorFilter = dom.modalSectorSelect?.value || '';
+        const filtered = sectorFilter
+            ? state.schools.filter(s => s.sector === sectorFilter)
+            : state.schools;
+        dom.modalSchoolSelect.innerHTML = '<option value="">Selecione uma Escola</option>';
+        filtered.forEach((school, index) => {
+            const option = document.createElement('option');
+            option.value = String(index);
+            option.dataset.originalName = school.name;
+            option.textContent = school.sector ? `${school.name} (${school.sector})` : school.name;
+            dom.modalSchoolSelect.appendChild(option);
+        });
+
+        if (state.selectedSchool) {
+            const matchIndex = filtered.findIndex(s => s.name === state.selectedSchool.name);
+            if (matchIndex >= 0) {
+                dom.modalSchoolSelect.selectedIndex = matchIndex + 1;
+            }
+        }
+    }
+
+    function getUnitList() {
+        if (state.units.length) {
+            return state.units.map(unit => unit.name);
+        }
+        return ['kg', 'g', 'L', 'ml', 'un'];
+    }
+
+    function buildUnitSelect(selectedUnit) {
+        const select = document.createElement('select');
+        select.className = 'food-product-row-unit';
+        select.required = true;
+        getUnitList().forEach(unit => {
+            const option = document.createElement('option');
+            option.value = unit;
+            option.textContent = unit;
+            select.appendChild(option);
+        });
+        if (selectedUnit) {
+            select.value = selectedUnit;
+        }
+        return select;
+    }
+
+    function renderProductSelectionRows(filterText = '') {
+        if (!dom.productModalBody) return;
+        dom.productModalBody.innerHTML = '';
+        const normalized = filterText.trim().toLowerCase();
+        const filtered = normalized
+            ? state.foodProducts.filter(item => item.name.toLowerCase().includes(normalized))
+            : state.foodProducts;
+
+        if (!filtered.length) {
+            if (dom.productModalEmpty) dom.productModalEmpty.style.display = 'block';
+            return;
+        }
+        if (dom.productModalEmpty) dom.productModalEmpty.style.display = 'none';
+
+        filtered.forEach(product => {
+            const row = document.createElement('tr');
+            const checkboxCell = document.createElement('td');
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'food-product-row-select';
+            checkbox.dataset.productName = product.name;
+            checkboxCell.appendChild(checkbox);
+            row.appendChild(checkboxCell);
+
+            const nameCell = document.createElement('td');
+            nameCell.textContent = product.name;
+            row.appendChild(nameCell);
+
+            const quantityCell = document.createElement('td');
+            const quantityInput = document.createElement('input');
+            quantityInput.type = 'number';
+            quantityInput.min = '0.1';
+            quantityInput.step = '0.1';
+            quantityInput.value = '1';
+            quantityInput.className = 'food-product-row-quantity';
+            quantityCell.appendChild(quantityInput);
+            row.appendChild(quantityCell);
+
+            const unitCell = document.createElement('td');
+            const unitSelect = buildUnitSelect();
+            unitCell.appendChild(unitSelect);
+            row.appendChild(unitCell);
+
+            dom.productModalBody.appendChild(row);
+        });
+    }
+
+    function openModal(modal) {
+        if (!modal) return;
+        modal.style.display = 'flex';
+        requestAnimationFrame(() => modal.classList.add('is-open'));
+    }
+
+    function closeModal(modal) {
+        if (!modal) return;
+        modal.classList.remove('is-open');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 200);
+    }
+
+    function attachModalCloseHandlers() {
+        if (dom.schoolModalCloseBtns) {
+            dom.schoolModalCloseBtns.forEach(btn => {
+                btn.addEventListener('click', () => closeModal(dom.schoolModal));
+            });
+        }
+        if (dom.productModalCloseBtns) {
+            dom.productModalCloseBtns.forEach(btn => {
+                btn.addEventListener('click', () => closeModal(dom.productModal));
+            });
+        }
+        window.addEventListener('click', event => {
+            if (event.target === dom.schoolModal) closeModal(dom.schoolModal);
+            if (event.target === dom.productModal) closeModal(dom.productModal);
+        });
+    }
+
+    function handleConfirmSchool() {
+        const sector = dom.modalSectorSelect?.value || '';
+        const schoolIndex = dom.modalSchoolSelect?.value;
+        const filtered = sector
+            ? state.schools.filter(s => s.sector === sector)
+            : state.schools;
+        const selected = filtered[Number(schoolIndex)];
+        if (!selected) {
+            alert('Selecione uma escola válida.');
+            return;
+        }
+        state.selectedSector = selected.sector || sector || '';
+        state.selectedSchool = selected;
+        renderSchoolInfo();
+        closeModal(dom.schoolModal);
+    }
+
+    function handleAddSelectedProducts() {
+        if (!dom.productModalBody) return;
+        const rows = Array.from(dom.productModalBody.querySelectorAll('tr'));
+        const selectedRows = rows.filter(row => {
+            const checkbox = row.querySelector('.food-product-row-select');
+            return checkbox && checkbox.checked;
+        });
+
+        if (!selectedRows.length) {
+            alert('Selecione pelo menos um produto para adicionar.');
+            return;
+        }
+
+        selectedRows.forEach(row => {
+            const checkbox = row.querySelector('.food-product-row-select');
+            const qtyInput = row.querySelector('.food-product-row-quantity');
+            const unitSelect = row.querySelector('.food-product-row-unit');
+
+            const productName = checkbox?.dataset.productName?.trim();
+            const unit = unitSelect?.value?.trim();
+            const quantity = parseFloat(qtyInput?.value);
+
+            if (!productName || !unit || !Number.isFinite(quantity) || quantity <= 0) {
+                return;
+            }
+
+            const existingIndex = state.items.findIndex(item => item.product === productName && item.unit === unit);
+            if (existingIndex >= 0) {
+                state.items[existingIndex].quantity = parseFloat((state.items[existingIndex].quantity + quantity).toFixed(2));
+            } else {
+                state.items.push({
+                    product: productName,
+                    quantity: parseFloat(quantity.toFixed(2)),
+                    unit
+                });
+            }
+        });
+
+        renderItems();
+        closeModal(dom.productModal);
+    }
+
+    function handleRemoveItem(event) {
+        const target = event.target;
+        if (!target.classList.contains('btn-delete')) return;
+        const index = Number(target.dataset.index);
+        if (Number.isNaN(index)) return;
+        state.items.splice(index, 1);
+        renderItems();
+    }
+
+    function clearOrder() {
+        state.items = [];
+        state.observations = '';
+        if (dom.observationsInput) dom.observationsInput.value = '';
+        renderItems();
+    }
+
+    function buildOrderPayload() {
+        if (!state.selectedSchool) {
+            alert('Selecione uma escola antes de gerar o PDF.');
+            return null;
+        }
+        if (!state.items.length) {
+            alert('Adicione ao menos um produto antes de gerar o PDF.');
+            return null;
+        }
+
+        const nowIso = new Date().toISOString();
+        const orderData = {
+            id: null,
+            localId: Date.now(),
+            date: new Date().toLocaleDateString('pt-BR'),
+            order_date: new Date().toISOString().split('T')[0],
+            school: state.selectedSchool,
+            items: state.items.map(item => ({
+                product: item.product,
+                quantity: item.quantity,
+                unit: item.unit
+            })),
+            observations: state.observations || '',
+            created_at: nowIso,
+            localCreatedAt: nowIso,
+            pendingSync: false,
+            wasSynced: false,
+            lastSyncError: null
+        };
+        return orderData;
+    }
+
+    async function generatePdf(orderData) {
+        if (!orderData.date) {
+            orderData.date = formatHistoryDate(orderData.order_date || orderData.created_at || new Date().toISOString());
+        }
+        try {
+            await window.PDF.generateOrderPdf(orderData, true);
+        } catch (error) {
+            console.error('Erro ao gerar PDF:', error);
+            alert('Não foi possível gerar o PDF. Verifique o console para mais detalhes.');
+        }
+    }
+
+    async function persistFoodOrder(orderData) {
+        if (!window.isSupabaseConfigured?.()) {
+            return { data: null, error: null };
+        }
+
+        const tag = '[Alimentacao]';
+
+        // Attempt dedicated endpoint first, fallback to padrão se falhar
+        if (typeof window.saveFoodOrder === 'function') {
+            try {
+                const result = await window.saveFoodOrder(orderData);
+                if (result?.error) {
+                    console.warn(`${tag} saveFoodOrder retornou erro, tentando saveOrder`, result.error);
+                } else if (result?.data) {
+                    return result;
+                } else if (result && !result.error) {
+                    // Sem erro explícito, mas sem data retornada. Considera sucesso para manter compatibilidade.
+                    return result;
+                }
+            } catch (error) {
+                console.warn(`${tag} saveFoodOrder lançou exceção, tentando saveOrder`, error?.message || error, error);
+            }
+        }
+
+        try {
+            const fallback = await window.saveOrder(orderData);
+            if (fallback?.error) {
+                throw fallback.error;
+            }
+            return fallback;
+        } catch (error) {
+            console.error('Erro ao salvar pedido de alimentação:', error?.message || error, error);
+            return { data: null, error };
+        }
+    }
+
+    async function init() {
+        queryDom();
+        if (!dom.selectSchoolBtn || !dom.orderTableBody) return;
+
+        loadFromLocalStorage();
+        renderHistory();
+        await fetchFromSupabase({ forceHistory: true });
+        await syncPendingHistory();
+
+        renderSchoolInfo();
+        renderItems();
+        renderHistory();
+        if (dom.observationsInput) {
+            dom.observationsInput.value = state.observations;
+        }
+        if (dom.historySearchInput) {
+            dom.historySearchInput.value = state.historySearchTerm;
+        }
+
+        attachModalCloseHandlers();
+
+        dom.configureProductsBtn?.addEventListener('click', () => {
+            try {
+                localStorage.setItem('ckpTargetPage', 'settings');
+                localStorage.setItem('ckpTargetTab', 'food-products-settings');
+                localStorage.setItem('ckpActiveRole', 'admin');
+            } catch (_) {}
+            window.location.href = 'index.html';
+        });
+
+        dom.selectSchoolBtn.addEventListener('click', () => {
+            populateSectorOptions();
+            populateSchoolOptions();
+            openModal(dom.schoolModal);
+        });
+
+        dom.modalSectorSelect?.addEventListener('change', populateSchoolOptions);
+        dom.schoolModalConfirmBtn?.addEventListener('click', handleConfirmSchool);
+
+        dom.openProductModalBtn.addEventListener('click', () => {
+            renderProductSelectionRows(dom.productModalSearch?.value || '');
+            if (dom.productModalSelectAll) dom.productModalSelectAll.checked = false;
+            openModal(dom.productModal);
+        });
+
+        dom.productModalApplyBtn?.addEventListener('click', handleAddSelectedProducts);
+        if (dom.productModalSelectAll && dom.productModalBody) {
+            dom.productModalSelectAll.addEventListener('change', () => {
+                const checked = dom.productModalSelectAll.checked;
+                dom.productModalBody.querySelectorAll('.food-product-row-select').forEach(cb => {
+                    cb.checked = checked;
+                });
+            });
+        }
+        dom.productModalSearch?.addEventListener('input', event => {
+            renderProductSelectionRows(event.target.value);
+            if (dom.productModalSelectAll) dom.productModalSelectAll.checked = false;
+        });
+        dom.historyTableBody?.addEventListener('click', handleHistoryAction);
+        dom.historySearchInput?.addEventListener('input', event => {
+            state.historySearchTerm = event.target.value;
+            renderHistory();
+        });
+        dom.historySearchBtn?.addEventListener('click', () => {
+            state.historySearchTerm = dom.historySearchInput?.value || '';
+            renderHistory();
+        });
+        dom.orderTableBody.addEventListener('click', handleRemoveItem);
+        dom.clearOrderBtn?.addEventListener('click', clearOrder);
+        dom.generatePdfBtn?.addEventListener('click', async () => {
+            const orderData = buildOrderPayload();
+            if (!orderData) return;
+
+            const { data: saved, error } = await persistFoodOrder(orderData);
+            if (error) {
+                alert('Pedido gerado, mas houve falha ao salvar no servidor. Consulte o console.');
+                orderData.pendingSync = true;
+                orderData.wasSynced = false;
+                orderData.lastSyncError = error.message || 'Erro desconhecido';
+            } else if (saved?.id) {
+                orderData.id = saved.id;
+                orderData.order_date = saved.order_date;
+                orderData.created_at = saved.created_at;
+                orderData.date = formatHistoryDate(saved.order_date);
+                orderData.pendingSync = false;
+                orderData.wasSynced = true;
+                orderData.lastSyncError = null;
+            } else if (window.isSupabaseConfigured?.()) {
+                orderData.pendingSync = false;
+                orderData.wasSynced = true;
+                orderData.lastSyncError = null;
+            }
+
+            if (!orderData.localCreatedAt) {
+                const stamp = new Date().toISOString();
+                orderData.localCreatedAt = stamp;
+                orderData.created_at = orderData.created_at || stamp;
+            }
+            orderData.pendingSync = orderData.pendingSync ?? !window.isSupabaseConfigured?.();
+            orderData.wasSynced = orderData.wasSynced ?? !orderData.pendingSync;
+
+            upsertHistoryEntry(orderData);
+            await generatePdf(orderData);
+        });
+        dom.observationsInput?.addEventListener('input', event => {
+            state.observations = event.target.value;
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+})();

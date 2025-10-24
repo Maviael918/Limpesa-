@@ -16,6 +16,13 @@ DROP POLICY IF EXISTS allow_anon_update_products ON products;
 DROP POLICY IF EXISTS allow_anon_delete_products ON products;
 ALTER TABLE IF EXISTS products DISABLE ROW LEVEL SECURITY;
 
+-- Produtos de Alimentação
+DROP POLICY IF EXISTS allow_anon_select_food_products ON food_products;
+DROP POLICY IF EXISTS allow_anon_insert_food_products ON food_products;
+DROP POLICY IF EXISTS allow_anon_update_food_products ON food_products;
+DROP POLICY IF EXISTS allow_anon_delete_food_products ON food_products;
+ALTER TABLE IF EXISTS food_products DISABLE ROW LEVEL SECURITY;
+
 -- Unidades
 DROP POLICY IF EXISTS allow_anon_select_units ON units;
 DROP POLICY IF EXISTS allow_anon_insert_units ON units;
@@ -43,5 +50,12 @@ DROP POLICY IF EXISTS allow_anon_insert_orders ON order_history;
 DROP POLICY IF EXISTS allow_anon_update_orders ON order_history;
 DROP POLICY IF EXISTS allow_anon_delete_orders ON order_history;
 ALTER TABLE IF EXISTS order_history DISABLE ROW LEVEL SECURITY;
+
+-- Food Orders
+DROP POLICY IF EXISTS allow_anon_select_food_orders ON food_order_history;
+DROP POLICY IF EXISTS allow_anon_insert_food_orders ON food_order_history;
+DROP POLICY IF EXISTS allow_anon_update_food_orders ON food_order_history;
+DROP POLICY IF EXISTS allow_anon_delete_food_orders ON food_order_history;
+ALTER TABLE IF EXISTS food_order_history DISABLE ROW LEVEL SECURITY;
 
 -- Nota: se você quiser apenas remover as policies mas manter RLS habilitado, remova as linhas de DISABLE ROW LEVEL SECURITY.

@@ -110,6 +110,7 @@ class SyncManager {
             const results = {
                 schools: { count: 0, success: true },
                 products: { count: 0, success: true },
+                foodProducts: { count: 0, success: true },
                 units: { count: 0, success: true },
                 kits: { count: 0, success: true },
                 stock: { count: 0, success: true },
@@ -175,7 +176,41 @@ class SyncManager {
                 console.error('❌ Erro ao carregar produtos:', error);
             }
 
-            // 3. Puxar Unidades
+            // 3. Puxar Produtos de Alimentação
+            try {
+                const { data: foodProductsData, error: foodProductsError } = await window.supabaseClient
+                    .from('food_products')
+                    .select('*')
+                    .order('name');
+
+                if (foodProductsError) throw foodProductsError;
+                console.log('Supabase food products data:', foodProductsData);
+
+                if (foodProductsData && foodProductsData.length > 0) {
+                    const formattedFoodProducts = foodProductsData.map(product => ({
+                        name: product.name
+                    }));
+
+                    localStorage.setItem('foodProducts', JSON.stringify(formattedFoodProducts));
+                    if (Array.isArray(window.foodProducts)) {
+                        window.foodProducts.length = 0;
+                        formattedFoodProducts.forEach(product => window.foodProducts.push(product));
+                    }
+                    results.foodProducts.count = formattedFoodProducts.length;
+                    console.log(`✅ ${formattedFoodProducts.length} produtos de alimentação carregados`);
+                } else {
+                    localStorage.setItem('foodProducts', JSON.stringify([]));
+                    if (Array.isArray(window.foodProducts)) {
+                        window.foodProducts.length = 0;
+                    }
+                    console.log('ℹ️ Nenhum produto de alimentação encontrado no Supabase');
+                }
+            } catch (error) {
+                results.foodProducts.success = false;
+                console.error('❌ Erro ao carregar produtos de alimentação:', error);
+            }
+
+            // 4. Puxar Unidades
             try {
                 const { data: unitsData, error: unitsError } = await window.supabaseClient
                     .from('units')
@@ -201,7 +236,7 @@ class SyncManager {
                 console.error('❌ Erro ao carregar unidades:', error);
             }
 
-            // 4. Puxar Kits (agrupados por tipo)
+            // 5. Puxar Kits (agrupados por tipo)
             try {
                 const { data: kitsData, error: kitsError } = await window.supabaseClient
                     .from('kits')
@@ -246,7 +281,7 @@ class SyncManager {
                 console.error('❌ Erro ao carregar kits:', error);
             }
 
-            // 5. Puxar Estoque
+            // 6. Puxar Estoque
             try {
                 const { data: stockData, error: stockError } = await window.supabaseClient
                     .from('stock')
@@ -278,7 +313,7 @@ class SyncManager {
                 console.error('❌ Erro ao carregar estoque:', error);
             }
 
-            // 6. Puxar Histórico de Pedidos (todos os registros para pesquisa)
+            // 7. Puxar Histórico de Pedidos (todos os registros para pesquisa)
             try {
                 const { data: ordersData, error: ordersError } = await window.supabaseClient
                     .from('order_history')

@@ -3,6 +3,7 @@
 // Global data cache
 let schools = [];
 let products = [];
+let foodProducts = [];
 let units = [];
 let kits = { p: [], m: [], g: [] };
 let orders = [];
@@ -11,6 +12,7 @@ let currentOrderProducts = [];
 let editingOrderId = null;
 let orderHistorySearchTerm = '';
 let hasLoggedLocalLoad = false;
+let editingFoodProductIndex = null;
 
 let domElements = {}; // Para armazenar referências aos elementos DOM
 
@@ -51,6 +53,9 @@ window.Main = {
         try {
             schools = JSON.parse(localStorage.getItem('schools')) || [];
             products = JSON.parse(localStorage.getItem('products')) || [];
+            foodProducts = JSON.parse(localStorage.getItem('foodProducts')) || [];
+            if (!Array.isArray(foodProducts)) foodProducts = [];
+            foodProducts = foodProducts.map(product => typeof product === 'string' ? { name: product } : product);
             units = JSON.parse(localStorage.getItem('units')) || [];
             kits = JSON.parse(localStorage.getItem('kits')) || { p: [], m: [], g: [] };
             orders = JSON.parse(localStorage.getItem('orders')) || [];
@@ -75,6 +80,7 @@ window.Main = {
             console.error('Erro ao carregar dados do localStorage para user_page:', error);
             schools = [];
             products = [];
+            foodProducts = [];
             units = [];
             kits = { p: [], m: [], g: [] };
             orders = [];
@@ -86,6 +92,7 @@ window.Main = {
         try {
             localStorage.setItem('schools', JSON.stringify(schools));
             localStorage.setItem('products', JSON.stringify(products));
+            localStorage.setItem('foodProducts', JSON.stringify(foodProducts));
             localStorage.setItem('units', JSON.stringify(units));
             localStorage.setItem('kits', JSON.stringify(kits));
             localStorage.setItem('orders', JSON.stringify(orders));

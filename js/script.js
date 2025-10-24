@@ -6,6 +6,7 @@ let selectedKitProducts = [];
 // Global data cache
 let schools = [];
 let products = [];
+let foodProducts = [];
 let units = [];
 let stock = {};
 let kits = { p: [], m: [], g: [] };
@@ -16,6 +17,7 @@ let orderHistorySearchTerm = '';
 let editingOrderId = null;
 let editingSchoolIndex = null;
 let editingProductIndex = null;
+let editingFoodProductIndex = null;
 let editingUnitIndex = null;
 
 // ========== INITIALIZATION ==========

@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clean Kit Planner - Alimentação</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.lordicon.com/lordicon.js"></script>
 </head>
 <body>
     <script>
@@ -35,13 +38,28 @@
                     return;
                 }
 
-                const { data: profile, error: profileError } = await window.supabaseClient
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', session.user.id)
-                    .single();
+                let storedRole = null;
+                try { storedRole = localStorage.getItem('ckpActiveRole'); } catch (_) {}
+                storedRole = storedRole ? storedRole.toString().trim().toLowerCase() : null;
 
-                if (profileError || !profile || !['alimentacao','admin'].includes(profile.role)) {
+                let allowed = storedRole && ['alimentacao', 'admin'].includes(storedRole);
+
+                if (!allowed) {
+                    const { data: profile, error: profileError, status } = await window.supabaseClient
+                        .from('profiles')
+                        .select('role')
+                        .eq('id', session.user.id)
+                        .maybeSingle();
+
+                    if (profileError && status !== 406) {
+                        console.error('Erro ao buscar perfil para alimentação:', profileError);
+                    }
+
+                    const roleDb = profile?.role ? profile.role.toString().trim().toLowerCase() : null;
+                    allowed = roleDb && ['alimentacao', 'admin'].includes(roleDb);
+                }
+
+                if (!allowed) {
                     alert('Acesso negado. Você não tem permissão para acessar esta página.');
                     window.location.href = 'login.html';
                     return;
@@ -54,30 +72,161 @@
         <div class="page active">
             <h1>Área de Alimentação</h1>
             <div class="card">
-                <div class="form-actions" style="display:flex;justify-content:flex-end;margin-bottom:16px;">
-                    <button type="button" id="cadastrar-produto-alimentacao" class="btn btn-primary">Cadastrar Produto de Alimentação</button>
+                <div class="form-actions" style="display:flex;justify-content:flex-end;margin-bottom:16px;gap:8px;">
+                    <button type="button" id="cadastrar-produto-alimentacao" class="btn btn-secondary">
+                        <lord-icon src="https://cdn.lordicon.com/gqdnbnwt.json" trigger="hover" colors="primary:#ffffff" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
+                        Configurar Produtos
+                    </button>
+                    <button type="button" id="alimentacao-select-school-btn" class="btn">
+                        <lord-icon src="https://cdn.lordicon.com/nehsutef.json" trigger="hover" colors="primary:#ffffff" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
+                        Selecionar Escola
+                    </button>
+                    <button type="button" id="alimentacao-open-product-modal" class="btn btn-primary">
+                        <lord-icon src="https://cdn.lordicon.com/cllunfud.json" trigger="hover" colors="primary:#ffffff" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
+                        Adicionar Produtos
+                    </button>
                 </div>
-                <p>Esta é uma página placeholder para o papel "alimentação". Podemos definir aqui o fluxo específico quando você estiver pronto.</p>
+
+                <div class="order-meta" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px;">
+                    <div class="info-card">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <lord-icon src="https://cdn.lordicon.com/nocovwne.json" trigger="hover" colors="primary:#0b7285" style="width:28px;height:28px;"></lord-icon>
+                            <strong>Setor Selecionado</strong>
+                        </div>
+                        <span id="alimentacao-selected-sector">-</span>
+                    </div>
+                    <div class="info-card">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <lord-icon src="https://cdn.lordicon.com/sbiheqdr.json" trigger="hover" colors="primary:#0b7285" style="width:28px;height:28px;"></lord-icon>
+                            <strong>Escola Selecionada</strong>
+                        </div>
+                        <span id="alimentacao-selected-school">Nenhuma selecionada</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="alimentacao-observations">Observações</label>
+                    <textarea id="alimentacao-observations" placeholder="Observações sobre o pedido"></textarea>
+                </div>
+
+                <table id="alimentacao-order-table" class="table" style="width:100%; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left; padding:8px; border-bottom:1px solid #dee2e6;">Produto</th>
+                            <th style="text-align:left; padding:8px; border-bottom:1px solid #dee2e6;">Quantidade</th>
+                            <th style="text-align:left; padding:8px; border-bottom:1px solid #dee2e6;">Unidade</th>
+                            <th style="text-align:left; padding:8px; border-bottom:1px solid #dee2e6;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alimentacao-order-tbody">
+                        <!-- Produtos adicionados serão inseridos aqui -->
+                    </tbody>
+                </table>
+                <p id="alimentacao-empty-message" class="empty-message">Nenhum produto adicionado. Clique em "Adicionar Produto" para começar.</p>
+
+                <div class="form-actions" style="display:flex;justify-content:flex-end;margin-top:16px;gap:8px;">
+                    <button type="button" id="alimentacao-clear-order" class="btn btn-secondary">
+                        <lord-icon src="https://cdn.lordicon.com/rslnizbt.json" trigger="hover" colors="primary:#ffffff" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
+                        Limpar Pedido
+                    </button>
+                    <button type="button" id="alimentacao-generate-pdf" class="btn btn-success">
+                        <lord-icon src="https://cdn.lordicon.com/pithnlch.json" trigger="hover" colors="primary:#ffffff" style="width:22px;height:22px;margin-right:6px;"></lord-icon>
+                        Gerar PDF
+                    </button>
+                </div>
             </div>
+        </div>
+
+        <div class="card" style="margin-top:24px;">
+            <div class="order-history-header" style="margin-bottom:12px;">
+                <h2>Histórico de Pedidos</h2>
+                <div class="order-history-actions">
+                    <div class="order-history-search">
+                        <input type="search" id="alimentacao-history-search-input" placeholder="Buscar escola no histórico" aria-label="Buscar escola no histórico">
+                        <button type="button" id="alimentacao-history-search-btn" class="icon-button" aria-label="Buscar no histórico"></button>
+                    </div>
+                    <button type="button" id="alimentacao-print-latest" class="btn btn-secondary btn-sm">Imprimir</button>
+                </div>
+            </div>
+            <table class="table" style="width:100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th style="text-align:left; padding:8px; border-bottom:1px solid #dee2e6;">Escola</th>
+                        <th style="text-align:left; padding:8px; border-bottom:1px solid #dee2e6;">Data</th>
+                        <th style="text-align:left; padding:8px; border-bottom:1px solid #dee2e6;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="alimentacao-history-tbody">
+                </tbody>
+            </table>
+            <p id="alimentacao-history-empty" class="empty-message" style="display:none;">Nenhum pedido registrado ainda.</p>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <script src="js/supabase-config.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const cadastroBtn = document.getElementById('cadastrar-produto-alimentacao');
-            if (cadastroBtn) {
-                cadastroBtn.addEventListener('click', function() {
-                    try {
-                        localStorage.setItem('ckpTargetPage', 'settings');
-                        localStorage.setItem('ckpTargetTab', 'products-settings');
-                        localStorage.setItem('ckpActiveRole', 'admin');
-                    } catch (_) {}
-                    window.location.href = 'index.html';
-                });
-            }
-        });
-    </script>
+    <script src="js/supabase.js"></script>
+    <script src="js/modules/pdf.js"></script>
+    <script src="js/alimentacao_page.js"></script>
+
+    <!-- Modais -->
+    <div id="alimentacao-school-modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <span class="close-button" data-modal-close="alimentacao-school-modal">&times;</span>
+            <h2 style="display:flex;align-items:center;gap:8px;">
+                <lord-icon src="https://cdn.lordicon.com/itnqiirz.json" trigger="loop" delay="2000" colors="primary:#0b7285" style="width:32px;height:32px;"></lord-icon>
+                Selecionar Escola
+            </h2>
+            <div class="form-group">
+                <label for="alimentacao-modal-sector">Setor</label>
+                <select id="alimentacao-modal-sector">
+                    <option value="">Todos os Setores</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="alimentacao-modal-school">Escola</label>
+                <select id="alimentacao-modal-school" required>
+                    <option value="">Selecione uma Escola</option>
+                </select>
+            </div>
+            <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:8px;">
+                <button type="button" class="btn btn-secondary" data-modal-close="alimentacao-school-modal">Cancelar</button>
+                <button type="button" id="alimentacao-confirm-school" class="btn btn-primary">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="alimentacao-product-modal" class="modal" style="display:none;">
+        <div class="modal-content modal-lg">
+            <span class="close-button" data-modal-close="alimentacao-product-modal">&times;</span>
+            <h2 style="display:flex;align-items:center;gap:8px;">
+                <lord-icon src="https://cdn.lordicon.com/cllunfud.json" trigger="loop" delay="2500" colors="primary:#0b7285" style="width:32px;height:32px;"></lord-icon>
+                Adicionar Produtos de Alimentação
+            </h2>
+            <div class="form-group">
+                <input type="search" id="alimentacao-product-search" placeholder="Filtrar produtos por nome..." />
+            </div>
+            <div class="table-responsive" style="max-height:380px; overflow:auto; border:1px solid #e9ecef; border-radius:8px;">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width:40px;"><input type="checkbox" id="alimentacao-product-select-all"></th>
+                            <th>Produto</th>
+                            <th style="width:120px;">Quantidade</th>
+                            <th style="width:120px;">Unidade</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alimentacao-product-modal-tbody">
+                        <!-- produtos dinamicos -->
+                    </tbody>
+                </table>
+            </div>
+            <p class="info-message" id="alimentacao-product-modal-empty" style="display:none; margin-top:12px;">Nenhum produto encontrado. Cadastre novos produtos de alimentação no painel principal.</p>
+            <div class="modal-actions" style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+                <button type="button" class="btn btn-secondary" data-modal-close="alimentacao-product-modal">Cancelar</button>
+                <button type="button" id="alimentacao-product-apply" class="btn btn-primary">Adicionar Selecionados</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
