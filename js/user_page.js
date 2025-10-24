@@ -9,6 +9,8 @@ let orders = [];
 let pdfSettings = {};
 let currentOrderProducts = [];
 let editingOrderId = null;
+let orderHistorySearchTerm = '';
+let hasLoggedLocalLoad = false;
 
 let domElements = {}; // Para armazenar referências aos elementos DOM
 
@@ -52,8 +54,23 @@ window.Main = {
             units = JSON.parse(localStorage.getItem('units')) || [];
             kits = JSON.parse(localStorage.getItem('kits')) || { p: [], m: [], g: [] };
             orders = JSON.parse(localStorage.getItem('orders')) || [];
+            if (!Array.isArray(orders)) orders = [];
+            orders = orders.map(order => {
+                const fallbackCreated = order?.created_at || order?.order_date || new Date().toISOString();
+                return {
+                    ...order,
+                    pendingSync: !!order?.pendingSync,
+                    wasSynced: order?.wasSynced ?? (!!order?.id && !order?.pendingSync),
+                    localCreatedAt: order?.localCreatedAt || fallbackCreated,
+                    lastSyncError: order?.lastSyncError || null
+                };
+            });
             pdfSettings = window.PDF.loadPdfSettings(); // Load PDF settings via PDF module
-            console.log('Dados carregados do localStorage para user_page');
+            console.log('Dados carregados do cache local para user_page');
+            if (!hasLoggedLocalLoad && window.StatusConsole) {
+                window.StatusConsole.log('Dados carregados do cache local', 'info');
+                hasLoggedLocalLoad = true;
+            }
         } catch (error) {
             console.error('Erro ao carregar dados do localStorage para user_page:', error);
             schools = [];
@@ -74,6 +91,7 @@ window.Main = {
             localStorage.setItem('orders', JSON.stringify(orders));
             // pdfSettings are saved via window.PDF.savePdfSettings()
             console.log('Dados salvos no localStorage para user_page');
+            window.StatusConsole?.log('Cache local atualizado (user_page)', 'info');
         } catch (error) {
             console.error('Erro ao salvar dados no localStorage para user_page:', error);
         }
@@ -108,6 +126,8 @@ window.Main = {
             printOrderBtn: document.getElementById('print-order-btn'),
             cancelEditBtn: document.getElementById('cancel-edit-btn'),
             ordersTable: document.getElementById('orders-table')?.querySelector('tbody'),
+            orderHistorySearchInput: document.getElementById('order-history-search-input'),
+            orderHistorySearchBtn: document.getElementById('order-history-search-btn'),
 
             // Quick Kits Buttons
             selectKitPBtn: document.getElementById('select-kit-p'),
@@ -160,5 +180,6 @@ window.Main = {
         };
         
         console.log('DOM elements inicializados para user_page:', Object.keys(domElements).length);
+        window.StatusConsole?.init();
     }
 };

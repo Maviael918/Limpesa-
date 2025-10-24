@@ -274,6 +274,284 @@ table tbody tr:hover {
     margin-right: 0;
 }
 
+.order-history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.order-history-header h2 {
+    margin: 0;
+}
+
+.order-history-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.order-history-search {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid #ced4da;
+    border-radius: 999px;
+    background-color: #fff;
+}
+
+.order-history-search input {
+    border: none;
+    outline: none;
+    min-width: 180px;
+    font-size: 0.95rem;
+    background: transparent;
+    color: #333;
+}
+
+.order-history-search input::placeholder {
+    color: #888;
+}
+
+.order-history-search input:focus {
+    outline: none;
+}
+
+.icon-button {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid transparent;
+    background-color: transparent;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.icon-button::before {
+    content: "";
+    display: block;
+    width: 18px;
+    height: 18px;
+    background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGNpcmNsZSBjeD0iMTEiIGN5PSIxMSIgcj0iNyIgc3Ryb2tlPSIjMzMzIiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiLz48bGluZSB4MT0iMTYuNSIgeTE9IjE2LjUiIHgyPSIyMSIgeTI9IjIxIiBzdHJva2U9IiMzMzMiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+");
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+
+.icon-button:hover,
+.icon-button:focus {
+    background-color: #f1f3f5;
+    border-color: #adb5bd;
+    outline: none;
+}
+
+.order-history-search:focus-within {
+    border-color: #6c63ff;
+    box-shadow: 0 0 0 2px rgba(108, 99, 255, 0.15);
+}
+
+@media (max-width: 600px) {
+    .order-history-search input {
+        min-width: 140px;
+    }
+}
+
+.status-console {
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    padding: 8px 12px;
+    margin-bottom: 16px;
+    box-shadow: 0 6px 16px rgba(33, 37, 41, 0.05);
+}
+
+.status-summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 6px 4px;
+    cursor: pointer;
+    text-align: left;
+    border-radius: 10px;
+    font: inherit;
+    color: inherit;
+}
+
+.status-summary:hover {
+    background-color: rgba(108, 99, 255, 0.08);
+}
+
+.status-summary:focus-visible {
+    outline: 2px solid #6c63ff;
+    outline-offset: 2px;
+}
+
+.status-indicator {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: #adb5bd;
+    position: relative;
+    box-shadow: 0 0 0 0 rgba(173, 181, 189, 0.4);
+    transition: background-color 0.2s ease, box-shadow 0.3s ease;
+}
+
+.status-indicator.is-online {
+    background-color: #2ecc71;
+    box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.45);
+    animation: pulse-online 2.4s infinite;
+}
+
+.status-indicator.is-offline {
+    background-color: #adb5bd;
+}
+
+.status-indicator.is-syncing {
+    background-color: #e74c3c;
+    box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.45);
+    animation: pulse-sync 1.8s infinite;
+}
+
+.status-indicator.is-degraded {
+    background-color: #e67e22;
+    box-shadow: 0 0 0 0 rgba(230, 126, 34, 0.35);
+    animation: pulse-sync 2s infinite;
+}
+
+.status-texts {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+}
+
+.status-text {
+    font-weight: 600;
+    color: #212529;
+    font-size: 0.98rem;
+}
+
+.status-detail {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.status-caret {
+    width: 10px;
+    height: 10px;
+    border-right: 2px solid #adb5bd;
+    border-bottom: 2px solid #adb5bd;
+    transform: rotate(45deg);
+    transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+.status-console.is-expanded .status-caret {
+    transform: rotate(-135deg);
+    border-color: #6c63ff;
+}
+
+.status-console:not(.is-expanded) .status-log {
+    display: none;
+}
+
+.status-console:not(.is-expanded) .status-detail {
+    display: none;
+}
+
+.status-console.is-expanded .status-detail {
+    display: block;
+}
+
+.status-console.is-expanded {
+    padding-bottom: 12px;
+}
+
+.order-pending-badge {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #e67e22;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+.order-row-pending td {
+    background-color: #fff8e6;
+}
+
+.status-log {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+    max-height: 140px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.status-log-item {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    font-size: 0.84rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 6px 10px;
+    color: #343a40;
+    opacity: 0;
+    animation: fade-in-up 0.25s forwards;
+}
+
+.status-log-item.info { border-left: 3px solid #228be6; }
+.status-log-item.success { border-left: 3px solid #2ecc71; color: #1e7e34; }
+.status-log-item.error { border-left: 3px solid #e74c3c; color: #b02a37; }
+.status-log-item.warning,
+.status-log-item.pending { border-left: 3px solid #f1c40f; color: #a07800; }
+
+.status-log-time {
+    font-variant-numeric: tabular-nums;
+    color: #6c757d;
+    min-width: 54px;
+}
+
+.status-log-message {
+    flex: 1;
+}
+
+@keyframes pulse-online {
+    0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.45); }
+    70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
+}
+
+@keyframes pulse-sync {
+    0% { box-shadow: 0 0 0 0 rgba(241, 196, 15, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(241, 196, 15, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(241, 196, 15, 0); }
+}
+
+@keyframes fade-in-up {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* Modal Styles */
 /* Modal Styles */
 .modal {

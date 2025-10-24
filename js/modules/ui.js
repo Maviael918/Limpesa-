@@ -135,18 +135,61 @@ window.UI = {
         }
     },
 
+    getSortedOrdersDescending: function() {
+        const getOrderTimestamp = (order) => {
+            if (order?.created_at) {
+                const created = new Date(order.created_at);
+                if (!Number.isNaN(created.getTime())) return created.getTime();
+            }
+            if (order?.order_date) {
+                const iso = new Date(order.order_date);
+                if (!Number.isNaN(iso.getTime())) return iso.getTime();
+            }
+            if (order?.date) {
+                const parts = order.date.split('/');
+                if (parts.length === 3) {
+                    const [day, month, year] = parts;
+                    const parsed = new Date(`${year}-${month}-${day}`);
+                    if (!Number.isNaN(parsed.getTime())) return parsed.getTime();
+                }
+            }
+            return 0;
+        };
+
+        return [...orders].sort((a, b) => getOrderTimestamp(b) - getOrderTimestamp(a));
+    },
+
     renderOrders: function() {
         if (!domElements.ordersTable) return;
         
         domElements.ordersTable.innerHTML = '';
-        const latestOrders = [...orders]
-            .sort((a, b) => (b.id || 0) - (a.id || 0))
-            .slice(0, 10);
+        const sortedOrders = this.getSortedOrdersDescending();
+        const searchTerm = (orderHistorySearchTerm || '').trim().toLowerCase();
 
-        latestOrders.forEach((order, index) => {
+        const visibleOrders = searchTerm
+            ? sortedOrders.filter(order => (order.school?.name || '').toLowerCase().includes(searchTerm))
+            : sortedOrders.slice(0, 5);
+
+        if (visibleOrders.length === 0) {
             const row = domElements.ordersTable.insertRow();
+            const cell = row.insertCell();
+            cell.colSpan = 2;
+            cell.className = 'empty-message';
+            cell.textContent = searchTerm
+                ? 'Nenhum pedido encontrado para a busca.'
+                : 'Nenhum pedido cadastrado ainda.';
+            return;
+        }
+
+        visibleOrders.forEach(order => {
+            const row = domElements.ordersTable.insertRow();
+            const isPending = !!order.pendingSync;
+            if (isPending) {
+                row.classList.add('order-row-pending');
+            }
+            const pendingBadge = isPending ? '<span class="order-pending-badge" title="Aguardando sincronização com o Supabase"></span>' : '';
             row.innerHTML = `
-                <td>${order.school?.name || 'Escola não encontrada'}</td>
+                <td>${order.school?.name || 'Escola não encontrada'}${pendingBadge}</td>
                 <td>
                     <button class="btn btn-info btn-sm btn-pdf" data-id="${order.id}">PDF</button>
                     <button class="btn btn-warning btn-sm btn-edit-order" data-id="${order.id}">Editar</button>

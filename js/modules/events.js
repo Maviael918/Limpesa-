@@ -124,6 +124,26 @@ window.Events = {
             });
         }
 
+        if (domElements.orderHistorySearchInput) {
+            domElements.orderHistorySearchInput.addEventListener('input', function() {
+                window.Events.handleOrderHistorySearch(this.value);
+            });
+            domElements.orderHistorySearchInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    window.Events.handleOrderHistorySearch(this.value);
+                }
+            });
+        }
+
+        if (domElements.orderHistorySearchBtn) {
+            domElements.orderHistorySearchBtn.addEventListener('click', function() {
+                const value = domElements.orderHistorySearchInput?.value || '';
+                window.Events.handleOrderHistorySearch(value);
+                domElements.orderHistorySearchInput?.focus();
+            });
+        }
+
         if (domElements.openProductsModalBtn) {
             domElements.openProductsModalBtn.addEventListener('click', function() {
                 window.Modals.showProductsSelectionModal();
@@ -355,7 +375,8 @@ window.Events = {
             alert('Não há pedidos no histórico para imprimir.');
             return;
         }
-        const latest = orders.reduce((acc, o) => (!acc || (o.id > acc.id)) ? o : acc, null);
+        const sorted = window.UI.getSortedOrdersDescending?.();
+        const latest = Array.isArray(sorted) && sorted.length > 0 ? sorted[0] : null;
         if (!latest) {
             alert('Não foi possível determinar o pedido mais recente.');
             return;
@@ -363,17 +384,60 @@ window.Events = {
         await window.PDF.printOrder(latest);
     },
 
+    handleOrderHistorySearch: function(query) {
+        const normalized = (query || '').trim();
+        orderHistorySearchTerm = normalized;
+        if (domElements.orderHistorySearchInput && domElements.orderHistorySearchInput.value !== normalized) {
+            domElements.orderHistorySearchInput.value = normalized;
+        }
+        window.UI.renderOrders();
+    },
+
     persistOrderToSupabase: async function(orderData) {
+        if (!orderData) {
+            return { data: null, error: null };
+        }
+
+        orderData.pendingSync = !!orderData.pendingSync;
+        if (orderData.wasSynced === undefined) {
+            orderData.wasSynced = !!(orderData.id && !orderData.pendingSync);
+        }
+        orderData.lastSyncError = null;
+
         if (!window.isSupabaseConfigured?.()) {
+            orderData.pendingSync = true;
+            orderData.lastSyncError = 'Supabase não configurado';
+            window.StatusConsole?.setConnection?.('offline', 'Supabase não configurado');
+            window.StatusConsole?.log?.('Supabase indisponível - mantendo histórico apenas no cache local', 'warning');
             return { data: null, error: null };
         }
 
         try {
+            window.StatusConsole?.setSyncing?.('Sincronizando com o Supabase...');
+            window.StatusConsole?.log?.('Sincronização do pedido iniciada', 'pending');
+
             const { data, error } = await window.saveOrder(orderData);
             if (error) throw error;
+
+            if (data?.id) {
+                orderData.id = data.id;
+                orderData.order_date = data.order_date;
+                orderData.created_at = data.created_at;
+                orderData.pendingSync = false;
+                orderData.wasSynced = true;
+                orderData.syncedAt = new Date().toISOString();
+                orderData.lastSyncError = null;
+            }
+
+            window.StatusConsole?.setConnection?.('online', 'Online');
+            window.StatusConsole?.log?.('Pedido sincronizado com o Supabase', 'success');
             return { data, error: null };
         } catch (error) {
             console.error('Erro ao sincronizar pedido no Supabase:', error);
+            orderData.pendingSync = true;
+            orderData.lastSyncError = error?.message || 'Erro desconhecido';
+            window.StatusConsole?.setConnection?.('degraded', 'Erro ao sincronizar com o Supabase');
+            window.StatusConsole?.log?.(`Erro ao sincronizar com o Supabase: ${error.message || error}`, 'error');
             return { data: null, error };
         }
     },
@@ -396,13 +460,21 @@ window.Events = {
         // No stock check for user_page, as stock management is not available
 
         const isEditing = editingOrderId !== null;
+        const existingOrder = isEditing ? orders.find(o => o.id == editingOrderId) : null;
+        const nowIso = new Date().toISOString();
         const orderData = {
-            id: isEditing ? editingOrderId : null,
+            id: isEditing ? (existingOrder?.id ?? editingOrderId) : null,
             date: new Date().toLocaleDateString('pt-BR'),
             order_date: new Date().toISOString().split('T')[0],
             school: selectedSchool,
             items: [...currentOrderProducts],
-            observations
+            observations,
+            created_at: existingOrder?.created_at || null,
+            pendingSync: existingOrder?.pendingSync ?? false,
+            wasSynced: existingOrder?.wasSynced ?? false,
+            lastSyncError: existingOrder?.lastSyncError ?? null,
+            syncedAt: existingOrder?.syncedAt ?? null,
+            localCreatedAt: existingOrder?.localCreatedAt || nowIso
         };
 
         const { data: savedOrder } = await this.persistOrderToSupabase(orderData);
@@ -410,8 +482,16 @@ window.Events = {
             orderData.id = savedOrder.id;
             orderData.order_date = savedOrder.order_date;
             orderData.created_at = savedOrder.created_at;
+            orderData.pendingSync = false;
+            orderData.wasSynced = true;
+            orderData.syncedAt = orderData.syncedAt || new Date().toISOString();
         } else if (!orderData.id) {
             orderData.id = Date.now();
+            orderData.pendingSync = true;
+            orderData.wasSynced = false;
+        }
+        if (!orderData.created_at) {
+            orderData.created_at = nowIso;
         }
 
         if (isEditing) {
@@ -452,13 +532,20 @@ window.Events = {
             return;
         }
 
+        const nowIsoKit = new Date().toISOString();
         const kitOrder = {
             id: null,
             date: new Date().toLocaleDateString('pt-BR'),
-            order_date: new Date().toISOString().split('T')[0],
+            order_date: nowIsoKit.split('T')[0],
             school: selectedSchool,
             items: selectedKitProducts.map(item => ({ ...item })),
-            observations: 'Kit pré-configurado'
+            observations: 'Kit pré-configurado',
+            created_at: null,
+            pendingSync: false,
+            wasSynced: false,
+            lastSyncError: null,
+            syncedAt: null,
+            localCreatedAt: nowIsoKit
         };
 
         const { data: savedOrder } = await this.persistOrderToSupabase(kitOrder);
@@ -466,8 +553,16 @@ window.Events = {
             kitOrder.id = savedOrder.id;
             kitOrder.order_date = savedOrder.order_date;
             kitOrder.created_at = savedOrder.created_at;
+            kitOrder.pendingSync = false;
+            kitOrder.wasSynced = true;
+            kitOrder.syncedAt = kitOrder.syncedAt || new Date().toISOString();
         } else {
             kitOrder.id = Date.now();
+            kitOrder.pendingSync = true;
+            kitOrder.wasSynced = false;
+        }
+        if (!kitOrder.created_at) {
+            kitOrder.created_at = nowIsoKit;
         }
 
         // No stock check for user_page
@@ -535,13 +630,21 @@ window.Events = {
         }
 
         const isEditing = editingOrderId !== null;
+        const existingOrder = isEditing ? orders.find(o => o.id == editingOrderId) : null;
+        const nowIso = new Date().toISOString();
         const orderData = {
-            id: isEditing ? editingOrderId : null,
+            id: isEditing ? (existingOrder?.id ?? editingOrderId) : null,
             date: new Date().toLocaleDateString('pt-BR'),
-            order_date: new Date().toISOString().split('T')[0],
+            order_date: nowIso.split('T')[0],
             school: selectedSchool,
             items,
-            observations
+            observations,
+            created_at: existingOrder?.created_at || null,
+            pendingSync: existingOrder?.pendingSync ?? false,
+            wasSynced: existingOrder?.wasSynced ?? false,
+            lastSyncError: existingOrder?.lastSyncError ?? null,
+            syncedAt: existingOrder?.syncedAt ?? null,
+            localCreatedAt: existingOrder?.localCreatedAt || nowIso
         };
 
         const { data: savedOrder } = await this.persistOrderToSupabase(orderData);
@@ -549,8 +652,16 @@ window.Events = {
             orderData.id = savedOrder.id;
             orderData.order_date = savedOrder.order_date;
             orderData.created_at = savedOrder.created_at;
+            orderData.pendingSync = false;
+            orderData.wasSynced = true;
+            orderData.syncedAt = orderData.syncedAt || new Date().toISOString();
         } else if (!orderData.id) {
             orderData.id = Date.now();
+            orderData.pendingSync = true;
+            orderData.wasSynced = false;
+        }
+        if (!orderData.created_at) {
+            orderData.created_at = nowIso;
         }
 
         if (isEditing) {
@@ -622,8 +733,15 @@ window.Events = {
                 order.id = savedOrder.id;
                 order.order_date = savedOrder.order_date;
                 order.created_at = savedOrder.created_at;
-                window.Main.saveDataToLocalStorage();
+                order.pendingSync = false;
+                order.wasSynced = true;
+                order.syncedAt = order.syncedAt || new Date().toISOString();
             }
+            window.Main.saveDataToLocalStorage();
+        } else {
+            order.pendingSync = true;
+            order.wasSynced = false;
+            window.Main.saveDataToLocalStorage();
         }
     },
 

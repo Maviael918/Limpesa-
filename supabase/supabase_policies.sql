@@ -63,15 +63,15 @@ CREATE POLICY allow_auth_delete_stock ON stock FOR DELETE USING (auth.uid() IS N
 
 
 -- Orders
-ALTER TABLE IF EXISTS orders ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS allow_public_select_orders ON orders;
-CREATE POLICY allow_public_select_orders ON orders FOR SELECT USING (true);
-DROP POLICY IF EXISTS allow_auth_insert_orders ON orders;
-CREATE POLICY allow_auth_insert_orders ON orders FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
-DROP POLICY IF EXISTS allow_auth_update_orders ON orders;
-CREATE POLICY allow_auth_update_orders ON orders FOR UPDATE USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
-DROP POLICY IF EXISTS allow_auth_delete_orders ON orders;
-CREATE POLICY allow_auth_delete_orders ON orders FOR DELETE USING (auth.uid() IS NOT NULL);
+ALTER TABLE IF EXISTS order_history ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS allow_public_select_orders ON order_history;
+CREATE POLICY allow_public_select_orders ON order_history FOR SELECT USING (true);
+DROP POLICY IF EXISTS allow_auth_insert_orders ON order_history;
+CREATE POLICY allow_auth_insert_orders ON order_history FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+DROP POLICY IF EXISTS allow_auth_update_orders ON order_history;
+CREATE POLICY allow_auth_update_orders ON order_history FOR UPDATE USING (auth.uid() IS NOT NULL) WITH CHECK (auth.uid() IS NOT NULL);
+DROP POLICY IF EXISTS allow_auth_delete_orders ON order_history;
+CREATE POLICY allow_auth_delete_orders ON order_history FOR DELETE USING (auth.uid() IS NOT NULL);
 
 -- Observação: após executar este script, apenas usuários autenticados poderão
 -- realizar INSERT/UPDATE/DELETE. Se precisar que clientes (anon) escrevam,

@@ -91,6 +91,18 @@
         <div id="orders" class="page active">
             <h1>Novo Pedido</h1>
 
+            <div class="status-console" id="status-console" aria-live="polite">
+                <button type="button" class="status-summary" id="status-console-toggle" aria-expanded="false">
+                    <span class="status-indicator" id="supabase-status-indicator" aria-hidden="true"></span>
+                    <div class="status-texts">
+                        <span class="status-text" id="supabase-status-text">Offline</span>
+                        <span class="status-detail" id="supabase-status-detail">Aguardando Supabase</span>
+                    </div>
+                    <span class="status-caret" aria-hidden="true"></span>
+                </button>
+                <ul class="status-log" id="status-log"></ul>
+            </div>
+
             <div class="card">
                 <h2>Informações do Pedido</h2>
                 <div class="order-info-container">
@@ -263,10 +275,16 @@
             </div>
 
             <div id="orders-list">
-                <h2 style="display:flex;align-items:center;gap:10px;">
-                    Histórico dos Últimos 10 Pedidos
-                    <button type="button" id="print-latest-order-btn" class="btn btn-secondary btn-sm">Imprimir</button>
-                </h2>
+                <div class="order-history-header">
+                    <h2>Histórico de Pedidos</h2>
+                    <div class="order-history-actions">
+                        <div class="order-history-search">
+                            <input type="search" id="order-history-search-input" placeholder="Buscar escola no histórico" aria-label="Buscar escola no histórico">
+                            <button type="button" id="order-history-search-btn" class="icon-button" aria-label="Buscar no histórico"></button>
+                        </div>
+                        <button type="button" id="print-latest-order-btn" class="btn btn-secondary btn-sm">Imprimir</button>
+                    </div>
+                </div>
                 <div class="card">
                     <table id="orders-table">
                         <thead>
@@ -494,6 +512,7 @@
     <script src="js/supabase-config.js"></script>
     <script src="js/supabase.js"></script>
     <script src="js/sync-manager.js"></script>
+    <script src="js/modules/status-console.js"></script>
     <script src="js/modules/main.js"></script>
     <script src="js/modules/ui.js"></script>
     <script src="js/modules/events.js"></script>

@@ -12,6 +12,7 @@ let kits = { p: [], m: [], g: [] };
 let orders = [];
 let pdfSettings = {};
 let currentOrderProducts = [];
+let orderHistorySearchTerm = '';
 let editingOrderId = null;
 let editingSchoolIndex = null;
 let editingProductIndex = null;

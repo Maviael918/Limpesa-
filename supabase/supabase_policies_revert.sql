@@ -38,10 +38,10 @@ DROP POLICY IF EXISTS allow_anon_delete_stock ON stock;
 ALTER TABLE IF EXISTS stock DISABLE ROW LEVEL SECURITY;
 
 -- Orders
-DROP POLICY IF EXISTS allow_anon_select_orders ON orders;
-DROP POLICY IF EXISTS allow_anon_insert_orders ON orders;
-DROP POLICY IF EXISTS allow_anon_update_orders ON orders;
-DROP POLICY IF EXISTS allow_anon_delete_orders ON orders;
-ALTER TABLE IF EXISTS orders DISABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS allow_anon_select_orders ON order_history;
+DROP POLICY IF EXISTS allow_anon_insert_orders ON order_history;
+DROP POLICY IF EXISTS allow_anon_update_orders ON order_history;
+DROP POLICY IF EXISTS allow_anon_delete_orders ON order_history;
+ALTER TABLE IF EXISTS order_history DISABLE ROW LEVEL SECURITY;
 
 -- Nota: se você quiser apenas remover as policies mas manter RLS habilitado, remova as linhas de DISABLE ROW LEVEL SECURITY.

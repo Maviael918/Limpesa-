@@ -1,6 +1,7 @@
 // supabase.js - Cliente e funções utilitárias para sincronização automática
 
 const SUPABASE_LOG_PREFIX = '[Supabase]';
+const ORDER_HISTORY_TABLE = 'order_history';
 
 function isSupabaseConfigured() {
     return typeof window !== 'undefined' &&
@@ -12,6 +13,8 @@ function getClientOrError(operationName) {
     if (!isSupabaseConfigured()) {
         const error = new Error('Supabase não configurado');
         console.warn(`${SUPABASE_LOG_PREFIX} ${operationName}: ${error.message}`);
+        window.StatusConsole?.setConnection?.('offline', 'Supabase não configurado');
+        window.StatusConsole?.log?.(`Supabase não configurado (${operationName})`, 'warning');
         return { client: null, error };
     }
     return { client: window.supabaseClient, error: null };
@@ -283,7 +286,7 @@ async function saveOrder(orderData) {
     }
 
     try {
-        const isUpdate = !!orderData?.id;
+        const isUpdate = !!(orderData?.id) && !!orderData?.wasSynced && !orderData?.pendingSync;
         const orderDate = normalizeOrderDate(orderData);
         const payload = {
             order_date: orderDate,
@@ -296,14 +299,14 @@ async function saveOrder(orderData) {
 
         if (isUpdate) {
             response = await client
-                .from('orders')
+                .from(ORDER_HISTORY_TABLE)
                 .update(payload)
                 .eq('id', orderData.id)
                 .select()
                 .maybeSingle();
         } else {
             response = await client
-                .from('orders')
+                .from(ORDER_HISTORY_TABLE)
                 .insert(payload)
                 .select()
                 .maybeSingle();
@@ -328,7 +331,7 @@ async function deleteOrder(orderId) {
 
     try {
         const { error } = await client
-            .from('orders')
+            .from(ORDER_HISTORY_TABLE)
             .delete()
             .eq('id', orderId);
 
@@ -357,5 +360,6 @@ window.upsertKit = replaceKitItems; // compatibilidade com chamadas existentes
 window.saveOrder = saveOrder;
 window.insertOrder = saveOrder; // compatibilidade retroativa
 window.deleteOrder = deleteOrder;
+window.ORDER_HISTORY_TABLE = ORDER_HISTORY_TABLE;
 
 console.log(`${SUPABASE_LOG_PREFIX} Módulo carregado`);

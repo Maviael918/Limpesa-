@@ -1,3 +1,5 @@
+let hasLoggedAdminLocalLoad = false;
+
 window.Main = {
     loadDataFromLocalStorage: function() {
         try {
@@ -7,8 +9,23 @@ window.Main = {
             stock = JSON.parse(localStorage.getItem('stock')) || {};
             kits = JSON.parse(localStorage.getItem('kits')) || { p: [], m: [], g: [] };
             orders = JSON.parse(localStorage.getItem('orders')) || [];
+            if (!Array.isArray(orders)) orders = [];
+            orders = orders.map(order => {
+                const fallbackCreated = order?.created_at || order?.order_date || new Date().toISOString();
+                return {
+                    ...order,
+                    pendingSync: !!order?.pendingSync,
+                    wasSynced: order?.wasSynced ?? (!!order?.id && !order?.pendingSync),
+                    localCreatedAt: order?.localCreatedAt || fallbackCreated,
+                    lastSyncError: order?.lastSyncError || null
+                };
+            });
             pdfSettings = JSON.parse(localStorage.getItem('pdfSettings')) || {};
-            console.log('Dados carregados do localStorage');
+            console.log('Dados carregados do cache local');
+            if (!hasLoggedAdminLocalLoad && window.StatusConsole) {
+                window.StatusConsole.log('Dados carregados do cache local', 'info');
+                hasLoggedAdminLocalLoad = true;
+            }
         } catch (error) {
             console.error('Erro ao carregar dados do localStorage:', error);
             // Inicializar com arrays vazios em caso de erro
@@ -32,6 +49,7 @@ window.Main = {
             localStorage.setItem('orders', JSON.stringify(orders));
             localStorage.setItem('pdfSettings', JSON.stringify(pdfSettings));
             console.log('Dados salvos no localStorage');
+            window.StatusConsole?.log('Cache local atualizado (localStorage)', 'info');
         } catch (error) {
             console.error('Erro ao salvar dados no localStorage:', error);
         }
@@ -140,6 +158,8 @@ window.Main = {
             currentOrderTable: document.getElementById('current-order-table')?.querySelector('tbody'),
             ordersTable: document.getElementById('orders-table')?.querySelector('tbody'),
             emptyOrderMessage: document.getElementById('empty-order-message'),
+            orderHistorySearchInput: document.getElementById('order-history-search-input'),
+            orderHistorySearchBtn: document.getElementById('order-history-search-btn'),
 
             // PDF
             pdfSettingsForm: document.getElementById('pdf-settings-form'),
@@ -197,5 +217,6 @@ window.Main = {
         };
         
         console.log('DOM elements inicializados:', Object.keys(domElements).length);
+        window.StatusConsole?.init();
     }
 };
