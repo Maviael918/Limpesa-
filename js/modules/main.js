@@ -170,6 +170,9 @@ window.Main = {
             emptyOrderMessage: document.getElementById('empty-order-message'),
             orderHistorySearchInput: document.getElementById('order-history-search-input'),
             orderHistorySearchBtn: document.getElementById('order-history-search-btn'),
+            orderSelectedSectorLabel: document.getElementById('order-selected-sector-label'),
+            orderSelectedSchoolLabel: document.getElementById('order-selected-school-label'),
+            orderSelectedItemsLabel: document.getElementById('order-selected-items-label'),
 
             // PDF
             pdfSettingsForm: document.getElementById('pdf-settings-form'),
@@ -211,6 +214,7 @@ window.Main = {
             deleteOrderBtn: document.getElementById('delete-order-btn'),
             deleteOrderConfirmationModal: document.getElementById('delete-order-confirmation-modal'),
             confirmDeleteOrderBtn: document.getElementById('confirm-delete-order-btn'),
+            configureKitsBtnSecondary: document.getElementById('configure-kits-btn-secondary'),
 
             // Sync Panel
             pullFromSupabaseBtn: document.getElementById('pull-from-supabase'),

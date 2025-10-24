@@ -90,7 +90,7 @@ body {
     overflow: hidden;
     border: 1px solid #e9ecef;
     background: linear-gradient(135deg, #f8fbff 0%, #f5fff9 100%);
-    animation: fadeInUp 0.35s ease;
+    animation: fade-in-up 0.35s ease;
 }
 
 .page-hero-body {

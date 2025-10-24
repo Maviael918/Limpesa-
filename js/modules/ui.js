@@ -25,6 +25,7 @@ window.UI = {
             console.error('Erro no reRenderUI para user_page:', error);
         }
 
+        this.updateOrderHeroSummary();
         isRendering = false;
     },
 
@@ -73,6 +74,8 @@ window.UI = {
             option.textContent = `${school.name}${school.sector ? ` (${school.sector})` : ''}`;
             domElements.orderSchoolSelect.appendChild(option);
         });
+
+        this.updateOrderHeroSummary();
     },
 
     populateModalSchoolSelect: function() {
@@ -134,6 +137,8 @@ window.UI = {
                 `;
             });
         }
+
+        this.updateOrderHeroSummary();
     },
 
     getSortedOrdersDescending: function() {
@@ -198,6 +203,28 @@ window.UI = {
                 </td>
             `;
         });
+    },
+
+    updateOrderHeroSummary: function() {
+        if (domElements.orderSelectedSectorLabel) {
+            const sector = domElements.orderSectorFilter?.value?.trim();
+            domElements.orderSelectedSectorLabel.textContent = sector || 'Todos os setores';
+        }
+
+        if (domElements.orderSelectedSchoolLabel) {
+            const schoolValue = domElements.orderSchoolSelect?.value || '';
+            let display = 'Nenhuma selecionada';
+            if (schoolValue) {
+                const school = schools.find(s => s.name === schoolValue);
+                display = school ? school.name : schoolValue;
+            }
+            domElements.orderSelectedSchoolLabel.textContent = display;
+        }
+
+        if (domElements.orderSelectedItemsLabel) {
+            const count = Array.isArray(currentOrderProducts) ? currentOrderProducts.length : 0;
+            domElements.orderSelectedItemsLabel.textContent = count === 1 ? '1 produto' : `${count} produtos`;
+        }
     },
 
     showPage: function(pageId) {

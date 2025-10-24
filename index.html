@@ -206,7 +206,10 @@
                     <button id="select-kit-p" class="btn btn-kit">Kit P</button>
                     <button id="select-kit-m" class="btn btn-kit">Kit M</button>
                     <button id="select-kit-g" class="btn btn-kit">Kit G</button>
-                    <button id="configure-kits-btn" class="btn btn-secondary">Configurar Kits</button>
+                    <button id="configure-kits-btn-secondary" class="btn btn-secondary btn-icon">
+                        <lord-icon src="https://cdn.lordicon.com/gqdnbnwt.json" trigger="hover" colors="primary:#ffffff" style="width:20px;height:20px;"></lord-icon>
+                        Configurar Kits
+                    </button>
                 </div>
             </div>
 
@@ -646,7 +649,7 @@
     </div>
     <div id="school-selection-modal" class="modal" style="display: none;">
         <div class="modal-content">
-            <span class="close-button">&times;</span>
+            <button type="button" class="close-button modal-close-btn" data-modal="school-selection-modal">&times;</button>
             <h2 class="modal-title">
                 <lord-icon src="https://cdn.lordicon.com/itnqiirz.json" trigger="loop" delay="2000" colors="primary:#0b7285" style="width:28px;height:28px;"></lord-icon>
                 Selecionar Escola para o Kit

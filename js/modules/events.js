@@ -28,11 +28,18 @@ window.Events = {
             });
         }
 
+        const openKitConfiguration = () => {
+            if (!domElements.kitConfigurationSection) return;
+            domElements.kitConfigurationSection.style.display = 'block';
+            requestAnimationFrame(() => domElements.kitConfigurationSection.classList.add('is-open'));
+        };
+
         if (domElements.configureKitsBtn && domElements.kitConfigurationSection) {
-            domElements.configureKitsBtn.addEventListener('click', function() {
-                domElements.kitConfigurationSection.style.display = 'block';
-                requestAnimationFrame(() => domElements.kitConfigurationSection.classList.add('is-open'));
-            });
+            domElements.configureKitsBtn.addEventListener('click', openKitConfiguration);
+        }
+
+        if (domElements.configureKitsBtnSecondary && domElements.kitConfigurationSection) {
+            domElements.configureKitsBtnSecondary.addEventListener('click', openKitConfiguration);
         }
 
         if (domElements.closeKitConfigBtns && domElements.kitConfigurationSection) {
@@ -128,6 +135,13 @@ window.Events = {
         if (domElements.orderSectorFilter) {
             domElements.orderSectorFilter.addEventListener('change', function() {
                 window.UI.populateOrderSchoolSelect();
+                window.UI.updateOrderHeroSummary();
+            });
+        }
+
+        if (domElements.orderSchoolSelect) {
+            domElements.orderSchoolSelect.addEventListener('change', function() {
+                window.UI.updateOrderHeroSummary();
             });
         }
 
@@ -530,6 +544,7 @@ window.Events = {
         currentOrderProducts = [];
         window.UI.renderCurrentOrderProducts();
         domElements.orderObservationsInput.value = '';
+        window.UI.updateOrderHeroSummary();
 
         // Generate PDF
         await window.PDF.generateOrderPdf(orderData, true); // true para salvar
@@ -700,6 +715,7 @@ window.Events = {
         currentOrderProducts = [];
         window.UI.renderCurrentOrderProducts();
         domElements.orderObservationsInput.value = '';
+        window.UI.updateOrderHeroSummary();
 
         window.Modals.closeModal('order-confirmation-modal');
         await window.PDF.generateOrderPdf(orderData, true); // true para salvar
@@ -1358,5 +1374,6 @@ window.Events = {
         domElements.orderObservationsInput.value = '';
         domElements.saveOrderBtn.textContent = 'Salvar e Gerar PDF';
         domElements.cancelEditBtn.style.display = 'none';
+        window.UI.updateOrderHeroSummary();
     }
 };

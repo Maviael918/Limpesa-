@@ -9,7 +9,8 @@
         items: [],
         observations: '',
         history: [],
-        historySearchTerm: ''
+        historySearchTerm: '',
+        activeHistoryEdit: null
     };
 
     const dom = {};
@@ -19,6 +20,7 @@
         dom.selectSchoolBtn = document.getElementById('alimentacao-select-school-btn');
         dom.openProductModalBtn = document.getElementById('alimentacao-open-product-modal');
         dom.generatePdfBtn = document.getElementById('alimentacao-generate-pdf');
+        dom.printOrderBtn = document.getElementById('alimentacao-print-order');
         dom.clearOrderBtn = document.getElementById('alimentacao-clear-order');
         dom.selectedSector = document.getElementById('alimentacao-selected-sector');
         dom.selectedSchool = document.getElementById('alimentacao-selected-school');
@@ -41,10 +43,26 @@
         dom.productModalSearch = document.getElementById('alimentacao-product-search');
 
         dom.historyTableBody = document.getElementById('alimentacao-history-tbody');
-        dom.historyEmptyMessage = document.getElementById('alimentacao-history-empty');
         dom.historySearchInput = document.getElementById('alimentacao-history-search-input');
         dom.historySearchBtn = document.getElementById('alimentacao-history-search-btn');
-        dom.printLatestHistoryBtn = document.getElementById('alimentacao-print-latest');
+        dom.historyRefreshBtn = document.getElementById('alimentacao-refresh-history');
+        dom.historyViewModal = document.getElementById('alimentacao-history-view-modal');
+        dom.historyViewCloseBtns = dom.historyViewModal?.querySelectorAll('[data-modal-close="alimentacao-history-view-modal"]');
+        dom.historyViewDate = document.getElementById('alimentacao-view-date');
+        dom.historyViewSchool = document.getElementById('alimentacao-view-school');
+        dom.historyViewSector = document.getElementById('alimentacao-view-sector');
+        dom.historyViewObservations = document.getElementById('alimentacao-view-observations');
+        dom.historyViewProducts = document.getElementById('alimentacao-view-products');
+        dom.pdfPreviewModal = document.getElementById('alimentacao-pdf-preview-modal');
+        dom.pdfPreviewIframe = document.getElementById('alimentacao-pdf-preview-iframe');
+        dom.pdfPreviewClose = document.getElementById('alimentacao-close-pdf-preview');
+
+        window.domElements = window.domElements || {};
+        if (dom.pdfPreviewModal && dom.pdfPreviewIframe) {
+            window.domElements.pdfPreviewModal = dom.pdfPreviewModal;
+            window.domElements.pdfPreviewIframe = dom.pdfPreviewIframe;
+            window.domElements.closePdfPreview = dom.pdfPreviewClose;
+        }
     }
 
     function normalizeHistoryEntry(raw) {
@@ -266,14 +284,33 @@
 
         state.items.forEach((item, index) => {
             const row = dom.orderTableBody.insertRow();
-            row.innerHTML = `
-                <td>${item.product}</td>
-                <td>${item.quantity}</td>
-                <td>${item.unit}</td>
-                <td>
-                    <button type="button" class="btn btn-sm btn-delete" data-index="${index}">Remover</button>
-                </td>
-            `;
+
+            const productCell = row.insertCell();
+            productCell.textContent = item.product;
+
+            const qtyCell = row.insertCell();
+            const qtyInput = document.createElement('input');
+            qtyInput.type = 'number';
+            qtyInput.min = '0.01';
+            qtyInput.step = '0.01';
+            qtyInput.value = item.quantity;
+            qtyInput.className = 'food-order-edit-quantity';
+            qtyInput.dataset.index = String(index);
+            qtyCell.appendChild(qtyInput);
+
+            const unitCell = row.insertCell();
+            const unitSelect = buildUnitSelect(item.unit);
+            unitSelect.classList.add('food-order-edit-unit');
+            unitSelect.dataset.index = String(index);
+            unitCell.appendChild(unitSelect);
+
+            const actionsCell = row.insertCell();
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = 'btn btn-sm btn-delete';
+            deleteBtn.dataset.index = String(index);
+            deleteBtn.textContent = 'Remover';
+            actionsCell.appendChild(deleteBtn);
         });
     }
 
@@ -290,15 +327,15 @@
             : annotated.slice(0, 10);
 
         if (!visibleEntries.length) {
-            if (dom.historyEmptyMessage) {
-                dom.historyEmptyMessage.textContent = searchTerm
-                    ? 'Nenhum pedido encontrado para a busca.'
-                    : 'Nenhum pedido registrado ainda.';
-                dom.historyEmptyMessage.style.display = 'block';
-            }
+            const row = dom.historyTableBody.insertRow();
+            const cell = row.insertCell();
+            cell.colSpan = 3;
+            cell.className = 'empty-message';
+            cell.textContent = searchTerm
+                ? 'Nenhum pedido encontrado para a busca.'
+                : 'Nenhum pedido registrado ainda.';
             return;
         }
-        if (dom.historyEmptyMessage) dom.historyEmptyMessage.style.display = 'none';
 
         visibleEntries.forEach(({ entry, index }) => {
             const row = dom.historyTableBody.insertRow();
@@ -314,12 +351,36 @@
 
             const actionsCell = row.insertCell();
 
+            const viewBtn = document.createElement('button');
+            viewBtn.type = 'button';
+            viewBtn.className = 'btn btn-secondary btn-sm alimentacao-history-view';
+            viewBtn.dataset.historyIndex = String(index);
+            viewBtn.textContent = 'Visualizar';
+            actionsCell.appendChild(viewBtn);
+
+            const printBtn = document.createElement('button');
+            printBtn.type = 'button';
+            printBtn.className = 'btn btn-info btn-sm alimentacao-history-print';
+            printBtn.dataset.historyIndex = String(index);
+            printBtn.textContent = 'Imprimir';
+            printBtn.style.marginLeft = '6px';
+            actionsCell.appendChild(printBtn);
+
             const pdfBtn = document.createElement('button');
             pdfBtn.type = 'button';
-            pdfBtn.className = 'btn btn-info btn-sm alimentacao-history-pdf';
+            pdfBtn.className = 'btn btn-success btn-sm alimentacao-history-pdf';
             pdfBtn.dataset.historyIndex = String(index);
             pdfBtn.textContent = 'Baixar PDF';
+            pdfBtn.style.marginLeft = '6px';
             actionsCell.appendChild(pdfBtn);
+
+            const editBtn = document.createElement('button');
+            editBtn.type = 'button';
+            editBtn.className = 'btn btn-warning btn-sm alimentacao-history-edit';
+            editBtn.dataset.historyIndex = String(index);
+            editBtn.style.marginLeft = '6px';
+            editBtn.textContent = 'Editar';
+            actionsCell.appendChild(editBtn);
 
             const deleteBtn = document.createElement('button');
             deleteBtn.type = 'button';
@@ -352,6 +413,89 @@
         renderHistory();
     }
 
+    function viewHistoryOrder(order) {
+        if (!order || !dom.historyViewModal) {
+            alert('Visualização indisponível no momento.');
+            return;
+        }
+
+        const dateText = formatHistoryDate(order.order_date || order.created_at || order.date);
+        const schoolName = order.school?.name || 'Escola não informada';
+        const sector = order.school?.sector || 'Setor não informado';
+        const observations = order.observations || 'Sem observações.';
+
+        if (dom.historyViewDate) dom.historyViewDate.textContent = dateText;
+        if (dom.historyViewSchool) dom.historyViewSchool.textContent = schoolName;
+        if (dom.historyViewSector) dom.historyViewSector.textContent = sector;
+        if (dom.historyViewObservations) dom.historyViewObservations.textContent = observations;
+
+        if (dom.historyViewProducts) {
+            dom.historyViewProducts.innerHTML = '';
+            const items = Array.isArray(order.items)
+                ? order.items
+                : Array.isArray(order.items_data)
+                    ? order.items_data
+                    : [];
+
+            if (!items.length) {
+                const emptyRow = dom.historyViewProducts.insertRow();
+                const cell = emptyRow.insertCell();
+                cell.colSpan = 3;
+                cell.className = 'empty-message';
+                cell.textContent = 'Nenhum produto registrado.';
+            } else {
+                items.forEach(item => {
+                    const row = dom.historyViewProducts.insertRow();
+                    row.insertCell().textContent = item.product || '-';
+                    row.insertCell().textContent = `${item.quantity ?? ''}`;
+                    row.insertCell().textContent = item.unit || '';
+                });
+            }
+        }
+
+        openModal(dom.historyViewModal);
+    }
+
+    async function printHistoryOrder(order) {
+        if (!order) return;
+        const payload = {
+            ...order,
+            date: formatHistoryDate(order.order_date || order.date || order.created_at),
+            school: order.school || {}
+        };
+        try {
+            await window.PDF.printOrder(payload);
+        } catch (error) {
+            console.error('Erro ao imprimir pedido do histórico:', error);
+            alert('Não foi possível imprimir o pedido selecionado.');
+        }
+    }
+
+    function loadHistoryOrderIntoForm(order) {
+        if (!order) return;
+        state.activeHistoryEdit = order;
+
+        const schoolName = order.school?.name || '';
+        const matchingSchool = schoolName
+            ? state.schools.find(s => s.name === schoolName)
+            : null;
+
+        state.selectedSchool = matchingSchool || order.school || null;
+        state.selectedSector = state.selectedSchool?.sector || order.school?.sector || '';
+        state.items = Array.isArray(order.items)
+            ? order.items.map(item => ({ ...item }))
+            : Array.isArray(order.items_data)
+                ? order.items_data.map(item => ({ ...item }))
+                : [];
+        state.observations = order.observations || '';
+
+        renderSchoolInfo();
+        renderItems();
+        if (dom.observationsInput) {
+            dom.observationsInput.value = state.observations;
+        }
+    }
+
     async function handleHistoryAction(event) {
         const button = event.target.closest('button');
         if (!button) return;
@@ -361,6 +505,16 @@
 
         const order = state.history[index];
         if (!order) return;
+
+        if (button.classList.contains('alimentacao-history-view')) {
+            viewHistoryOrder(order);
+            return;
+        }
+
+        if (button.classList.contains('alimentacao-history-print')) {
+            await printHistoryOrder(order);
+            return;
+        }
 
         if (button.classList.contains('alimentacao-history-pdf')) {
             const payload = {
@@ -375,6 +529,12 @@
                 console.error('Erro ao gerar PDF do histórico:', error);
                 alert('Não foi possível gerar o PDF do pedido selecionado.');
             }
+            return;
+        }
+
+        if (button.classList.contains('alimentacao-history-edit')) {
+            loadHistoryOrderIntoForm(order);
+            alert('Pedido carregado no formulário. Ajuste os dados e gere o PDF para atualizar.');
             return;
         }
 
@@ -576,9 +736,19 @@
                 btn.addEventListener('click', () => closeModal(dom.productModal));
             });
         }
+        if (dom.historyViewCloseBtns) {
+            dom.historyViewCloseBtns.forEach(btn => {
+                btn.addEventListener('click', () => closeModal(dom.historyViewModal));
+            });
+        }
+        if (dom.pdfPreviewClose) {
+            dom.pdfPreviewClose.addEventListener('click', () => closeModal(dom.pdfPreviewModal));
+        }
         window.addEventListener('click', event => {
             if (event.target === dom.schoolModal) closeModal(dom.schoolModal);
             if (event.target === dom.productModal) closeModal(dom.productModal);
+            if (event.target === dom.historyViewModal) closeModal(dom.historyViewModal);
+            if (event.target === dom.pdfPreviewModal) closeModal(dom.pdfPreviewModal);
         });
     }
 
@@ -650,9 +820,30 @@
         renderItems();
     }
 
+    function handleInlineItemEdit(event) {
+        const target = event.target;
+        if (target.classList.contains('food-order-edit-quantity')) {
+            const index = Number(target.dataset.index);
+            if (Number.isInteger(index) && state.items[index]) {
+                const value = parseFloat(target.value);
+                if (Number.isFinite(value) && value > 0) {
+                    state.items[index].quantity = parseFloat(value.toFixed(2));
+                }
+            }
+            return;
+        }
+        if (target.classList.contains('food-order-edit-unit')) {
+            const index = Number(target.dataset.index);
+            if (Number.isInteger(index) && state.items[index]) {
+                state.items[index].unit = target.value;
+            }
+        }
+    }
+
     function clearOrder() {
         state.items = [];
         state.observations = '';
+        state.activeHistoryEdit = null;
         if (dom.observationsInput) dom.observationsInput.value = '';
         renderItems();
     }
@@ -667,12 +858,14 @@
             return null;
         }
 
-        const nowIso = new Date().toISOString();
+        const now = new Date();
+        const nowIso = now.toISOString();
+        const baseLocalId = state.activeHistoryEdit?.localId ?? Date.now();
         const orderData = {
-            id: null,
-            localId: Date.now(),
-            date: new Date().toLocaleDateString('pt-BR'),
-            order_date: new Date().toISOString().split('T')[0],
+            id: state.activeHistoryEdit?.id ?? null,
+            localId: baseLocalId,
+            date: now.toLocaleDateString('pt-BR'),
+            order_date: nowIso.split('T')[0],
             school: state.selectedSchool,
             items: state.items.map(item => ({
                 product: item.product,
@@ -681,9 +874,9 @@
             })),
             observations: state.observations || '',
             created_at: nowIso,
-            localCreatedAt: nowIso,
-            pendingSync: false,
-            wasSynced: false,
+            localCreatedAt: state.activeHistoryEdit?.localCreatedAt || nowIso,
+            pendingSync: state.activeHistoryEdit?.pendingSync ?? false,
+            wasSynced: state.activeHistoryEdit?.wasSynced ?? false,
             lastSyncError: null
         };
         return orderData;
@@ -698,6 +891,53 @@
         } catch (error) {
             console.error('Erro ao gerar PDF:', error);
             alert('Não foi possível gerar o PDF. Verifique o console para mais detalhes.');
+        }
+    }
+
+    async function finalizeOrderOutput(orderData, outputType) {
+        const { data: saved, error } = await persistFoodOrder(orderData);
+        if (error) {
+            alert('Pedido preparado, mas houve falha ao salvar no servidor. Consulte o console.');
+            orderData.pendingSync = true;
+            orderData.wasSynced = false;
+            orderData.lastSyncError = error.message || 'Erro desconhecido';
+        } else if (saved?.id) {
+            orderData.id = saved.id;
+            orderData.order_date = saved.order_date;
+            orderData.created_at = saved.created_at;
+            orderData.pendingSync = false;
+            orderData.wasSynced = true;
+            orderData.lastSyncError = null;
+        } else if (window.isSupabaseConfigured?.()) {
+            orderData.pendingSync = false;
+            orderData.wasSynced = true;
+            orderData.lastSyncError = null;
+        }
+
+        if (!orderData.localCreatedAt) {
+            const stamp = new Date().toISOString();
+            orderData.localCreatedAt = stamp;
+            orderData.created_at = orderData.created_at || stamp;
+        }
+        orderData.pendingSync = orderData.pendingSync ?? !window.isSupabaseConfigured?.();
+        orderData.wasSynced = orderData.wasSynced ?? !orderData.pendingSync;
+
+        state.activeHistoryEdit = null;
+        upsertHistoryEntry(orderData);
+
+        if (!orderData.date) {
+            orderData.date = formatHistoryDate(orderData.order_date || orderData.created_at || new Date().toISOString());
+        }
+
+        if (outputType === 'print') {
+            try {
+                await window.PDF.printOrder(orderData);
+            } catch (error) {
+                console.error('Erro ao imprimir pedido:', error);
+                alert('Não foi possível enviar o pedido para impressão.');
+            }
+        } else {
+            await generatePdf(orderData);
         }
     }
 
@@ -796,6 +1036,7 @@
             if (dom.productModalSelectAll) dom.productModalSelectAll.checked = false;
         });
         dom.historyTableBody?.addEventListener('click', handleHistoryAction);
+        dom.orderTableBody.addEventListener('input', handleInlineItemEdit);
         dom.historySearchInput?.addEventListener('input', event => {
             state.historySearchTerm = event.target.value;
             renderHistory();
@@ -804,42 +1045,28 @@
             state.historySearchTerm = dom.historySearchInput?.value || '';
             renderHistory();
         });
+        dom.historyRefreshBtn?.addEventListener('click', async () => {
+            if (dom.historyRefreshBtn.disabled) return;
+            dom.historyRefreshBtn.disabled = true;
+            try {
+                await fetchFromSupabase({ forceHistory: true });
+                renderHistory();
+            } finally {
+                dom.historyRefreshBtn.disabled = false;
+            }
+        });
         dom.orderTableBody.addEventListener('click', handleRemoveItem);
         dom.clearOrderBtn?.addEventListener('click', clearOrder);
+        dom.printOrderBtn?.addEventListener('click', async () => {
+            const orderData = buildOrderPayload();
+            if (!orderData) return;
+            await finalizeOrderOutput(orderData, 'print');
+        });
+
         dom.generatePdfBtn?.addEventListener('click', async () => {
             const orderData = buildOrderPayload();
             if (!orderData) return;
-
-            const { data: saved, error } = await persistFoodOrder(orderData);
-            if (error) {
-                alert('Pedido gerado, mas houve falha ao salvar no servidor. Consulte o console.');
-                orderData.pendingSync = true;
-                orderData.wasSynced = false;
-                orderData.lastSyncError = error.message || 'Erro desconhecido';
-            } else if (saved?.id) {
-                orderData.id = saved.id;
-                orderData.order_date = saved.order_date;
-                orderData.created_at = saved.created_at;
-                orderData.date = formatHistoryDate(saved.order_date);
-                orderData.pendingSync = false;
-                orderData.wasSynced = true;
-                orderData.lastSyncError = null;
-            } else if (window.isSupabaseConfigured?.()) {
-                orderData.pendingSync = false;
-                orderData.wasSynced = true;
-                orderData.lastSyncError = null;
-            }
-
-            if (!orderData.localCreatedAt) {
-                const stamp = new Date().toISOString();
-                orderData.localCreatedAt = stamp;
-                orderData.created_at = orderData.created_at || stamp;
-            }
-            orderData.pendingSync = orderData.pendingSync ?? !window.isSupabaseConfigured?.();
-            orderData.wasSynced = orderData.wasSynced ?? !orderData.pendingSync;
-
-            upsertHistoryEntry(orderData);
-            await generatePdf(orderData);
+            await finalizeOrderOutput(orderData, 'download');
         });
         dom.observationsInput?.addEventListener('input', event => {
             state.observations = event.target.value;
